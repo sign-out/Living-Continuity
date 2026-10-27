@@ -1,0 +1,957 @@
+{
+  "aiInstructions": {
+    "generateStory": {
+      "Competency Graph Micro-Skill Boundary": "When the runtime creates or proposes a new everyday competency, make it a bounded micro-skill: one reusable technique, procedure, equipment family, material/process, or comparably narrow learned practice. It must arise from actual practice, instruction, or demonstrated experience. Reject umbrella domains, whole professions, credentials, possessions, facts, relationships, one-off actions, trivial motions, synonyms, and recursive hyper-specific child skills. Host specialist skills remain authoritative."
+    },
+    "generateActionInfo": {
+      "Competency Graph Resolution": "Prefer a clearly applicable host-authored specialist skill. Otherwise use the broadest established competency that legitimately covers the action. Use exactly one principal mechanical skill for one check; never sum parent, child, synonym, or overlapping skills. A bounded micro-skill records narrow learned familiarity and can establish applicability or justify a small contextual advantage, but competence never creates credentials, authority, equipment, access, information channels, language knowledge, consent, or unrelated expertise.",
+      "LC-SkillWeave Host Isolation": "LC-SkillWeave competency IDs use the sw: namespace and are private competency identities, not native Voyage skill records. Host-native skills and resources remain authoritative. Never rewrite, synthesize, or partially replace a host skill/resource because a SkillWeave competency has a similar name. hostEquivalent is advisory resolution metadata only."
+    },
+    "generateNPCIntents": {
+      "LC Competency Feasibility": "When LC competency state is present, treat it as capability evidence for NPC intent feasibility. A missing specialist competency does not always forbid an attempt, but it can reduce confidence, require assistance or tools, block expert execution, or redirect the actor toward diagnosis, learning, delegation, or preparation. Competence never supplies missing knowledge, credentials, authority, access, equipment, consent, or an information channel."
+    },
+    "generateNPCUpdates": {
+      "LC Competency Evidence": "Record competence only from meaningful evidence such as instruction, repeated practice, consequential successful use, sustained work, or explicit host progression. One routine action does not establish broad expertise. Preserve narrow demonstrated subdomains and consolidation provenance."
+    },
+    "summarization": {
+      "Competency Graph Provenance": "Preserve compact evidence of meaningful learned competencies and consolidation provenance when relevant. Do not infer expertise from a one-off success. When low-level micros are consolidated, preserve their demonstrated subdomains as provenance without automatically re-expanding them into active skills."
+    }
+  },
+  "heroesVersion": 37,
+  "realms": {},
+  "regions": {},
+  "locations": {},
+  "unassignedAreas": {},
+  "factions": {},
+  "worldVoices": {},
+  "npcs": {},
+  "worldLore": {},
+  "storyStarts": {},
+  "itemTypes": {},
+  "abilities": {},
+  "skills": {},
+  "traits": {},
+  "traitCategories": {},
+  "npcTypes": {},
+  "resourceSettings": {},
+  "triggerDefinitions": {
+    "sys_competency_initialize": {
+      "name": "sys_competency_initialize",
+      "recurring": true,
+      "scope": "party",
+      "phase": "state",
+      "conditions": [],
+      "effects": [],
+      "script": "const O=x=>x&&typeof x==='object'&&!Array.isArray(x),tick=Number(check({type:'game-tick'})||0);\nconst hasLC=O(storage.sys_lc_systems_config)||O(storage.sys_continuity_config)||O(storage.sys_lc_system_registry);\nconst D={\n enabled:true,schemaVersion:2,mode:'auto',lcIntegration:'auto',\n skills:{},aliases:{},parents:{},\n micro:{enabled:true,maxNameChars:64,minEvidence:1,maxPerEntity:96,levelCeiling:3,preserveAtOrAbove:4,requireReusable:true,rejectTrivial:true,rejectCredentials:true,rejectFacts:true,rejectPossessions:true,rejectRelationships:true,rejectOneOff:true},\n consolidation:{enabled:true,offerRelatedCount:5,menuSoftCap:24,microToSpecialization:.80,specializationToCore:.75,microToCore:.45,minIndependence:.25,preserveAtOrAbove:4,requireApproval:true,cleanupMode:'retain'},\n projection:{enabled:true,maxActorsPerTurn:6,maxCompetenciesPerActor:8,maxChars:1800},\n npc:{enabled:true,feasibilityIntegration:true,evidenceIntegration:true},\n nativeBridge:{enabled:true,mode:'advisory',allowSetExisting:false,allowZeroConsumed:false,assumeDelete:false},\n provenance:{maxEvidencePerCompetency:12,maxArchivedPerEntity:128}\n};\nlet C=O(storage.sys_competency_config)?storage.sys_competency_config:{};C=Object.assign({},D,C);\nC.skills=O(C.skills)?C.skills:{};C.aliases=O(C.aliases)?C.aliases:{};C.parents=O(C.parents)?C.parents:{};C.hostIsolation=Object.assign({enabled:true,nativeSkillsReadOnly:true,nativeResourcesReadOnly:true,namespace:'sw:',allowNativeRegistryWrites:false},O(C.hostIsolation)?C.hostIsolation:{});\nC.micro=Object.assign({},D.micro,O(C.micro)?C.micro:{});C.consolidation=Object.assign({},D.consolidation,O(C.consolidation)?C.consolidation:{});C.projection=Object.assign({},D.projection,O(C.projection)?C.projection:{});C.npc=Object.assign({},D.npc,O(C.npc)?C.npc:{});C.nativeBridge=Object.assign({},D.nativeBridge,O(C.nativeBridge)?C.nativeBridge:{});C.provenance=Object.assign({},D.provenance,O(C.provenance)?C.provenance:{});storage.sys_competency_config=C;\nif(!O(storage.sys_competency_graph))storage.sys_competency_graph={schemaVersion:2,entities:{},taxonomy:{},aliases:{},parents:{},relations:{},proposals:[],consolidations:[],revision:0};\nconst G=storage.sys_competency_graph;G.entities=O(G.entities)?G.entities:{};G.taxonomy=O(G.taxonomy)?G.taxonomy:{};G.aliases=O(G.aliases)?G.aliases:{};G.parents=O(G.parents)?G.parents:{};G.relations=O(G.relations)?G.relations:{};G.proposals=Array.isArray(G.proposals)?G.proposals:[];G.consolidations=Array.isArray(G.consolidations)?G.consolidations:[];G.schemaVersion=Math.max(2,Number(G.schemaVersion||2));\nfor(const [id,s] of Object.entries(C.skills)){if(!s||s.enabled===false)continue;G.taxonomy[id]=Object.assign({id,scope:'broad',source:'config'},s);}\nG.aliases=Object.assign({},C.aliases,G.aliases);G.parents=Object.assign({},C.parents,G.parents);\nif(!O(storage.sys_competency_runtime))storage.sys_competency_runtime={initializedAtTick:tick,lastSeenTick:tick,lcPresent:false,integrationMode:'standalone',jobs:0,revision:0};\nconst R=storage.sys_competency_runtime;R.lastSeenTick=tick;R.lcPresent=hasLC;R.integrationMode=hasLC?'lc-enhanced':'standalone';\nif(hasLC){\n const LC=storage.sys_continuity_config??(storage.sys_continuity_config={}),S=storage.sys_lc_systems_config??(storage.sys_lc_systems_config={});\n LC.competencyGraph=Object.assign({enabled:true,schemaVersion:2,externalAddon:true,source:'sys_competency_graph',projectionEnabled:true,skillsConfigSource:'sys_competency_config.skills'},O(LC.competencyGraph)?LC.competencyGraph:{});\n S.competencyGraph=Object.assign({enabled:true,playerToggle:true,externalAddon:true},O(S.competencyGraph)?S.competencyGraph:{});\n if(O(storage.sys_lc_system_registry)){\n  const SR=storage.sys_lc_system_registry.systems??(storage.sys_lc_system_registry.systems={});\n  SR.competencyGraph=Object.assign({\n   id:'competencyGraph',\n   purpose:'Bounded competence, configurable taxonomy, micro-skill provenance, NPC capability evidence and consolidation',\n   owns:['sys_competency_graph','sys_competency_config','sys_competency_runtime'],\n   reads:['host skills','capabilities','cognition','roles','journal','actor capsules','attention','intent pipeline'],\n   feeds:['action resolution','actor capability','intent feasibility','context','navigation'],\n   projection:true,backCompat:true,externalAddon:true\n  },O(SR.competencyGraph)?SR.competencyGraph:{});\n  storage.sys_lc_system_registry.revision=Number(storage.sys_lc_system_registry.revision||0)+1;\n }\n}\nstorage.sys_competency_release='0.10-host-isolated';R.revision=Number(R.revision||0)+1;skip=true;"
+    },
+    "sys_competency_reconcile": {
+      "name": "sys_competency_reconcile",
+      "recurring": true,
+      "scope": "party",
+      "phase": "state",
+      "conditions": [],
+      "effects": [],
+      "script": "const O=x=>x&&typeof x==='object'&&!Array.isArray(x),C=storage.sys_competency_config??{},G=storage.sys_competency_graph,R=storage.sys_competency_runtime,tick=Number(check({type:'game-tick'})||0);\nif(C.enabled===false||!O(G)||!O(R)){skip=true;}else{\n const hasLC=O(storage.sys_lc_systems_config)||O(storage.sys_continuity_config)||O(storage.sys_lc_system_registry);R.lastSeenTick=tick;R.lcPresent=hasLC;R.integrationMode=hasLC?'lc-enhanced':'standalone';\n C.skills=O(C.skills)?C.skills:{};C.aliases=O(C.aliases)?C.aliases:{};C.parents=O(C.parents)?C.parents:{};C.hostIsolation=Object.assign({enabled:true,nativeSkillsReadOnly:true,nativeResourcesReadOnly:true,namespace:'sw:',allowNativeRegistryWrites:false},O(C.hostIsolation)?C.hostIsolation:{});\n G.taxonomy=O(G.taxonomy)?G.taxonomy:{};G.aliases=O(G.aliases)?G.aliases:{};G.parents=O(G.parents)?G.parents:{};\n for(const [id,s] of Object.entries(C.skills)){if(!s||s.enabled===false)continue;G.taxonomy[id]=Object.assign({id,scope:'broad',source:'config'},s);}\n G.aliases=Object.assign({},C.aliases,G.aliases);G.parents=Object.assign({},C.parents,G.parents);\n if(hasLC){\n  const LC=storage.sys_continuity_config??(storage.sys_continuity_config={}),S=storage.sys_lc_systems_config??(storage.sys_lc_systems_config={});\n  LC.competencyGraph=Object.assign({enabled:true,schemaVersion:2,externalAddon:true,source:'sys_competency_graph',projectionEnabled:true,skillsConfigSource:'sys_competency_config.skills'},O(LC.competencyGraph)?LC.competencyGraph:{});\n  S.competencyGraph=Object.assign({enabled:true,playerToggle:true,externalAddon:true},O(S.competencyGraph)?S.competencyGraph:{});\n }\n const maxE=Math.max(8,Number(C.provenance?.maxEvidencePerCompetency??12)),maxA=Math.max(16,Number(C.provenance?.maxArchivedPerEntity??128)),maxM=Math.max(16,Number(C.micro?.maxPerEntity??96));\n for(const [eid,E0] of Object.entries(G.entities??{})){if(!O(E0))continue;const E=E0;E.competencies=O(E.competencies)?E.competencies:{};E.archive=Array.isArray(E.archive)?E.archive:[];\n  for(const [id,k] of Object.entries(E.competencies)){if(!O(k)){delete E.competencies[id];continue;}k.evidence=Array.isArray(k.evidence)?k.evidence.slice(-maxE):[];if(!['micro','specialization','broad','host'].includes(String(k.scope)))k.scope='micro';if(!Number.isFinite(Number(k.level)))k.level=0;if(!Number.isFinite(Number(k.mass)))k.mass=Math.max(0,Number(k.level||0)**2);if(k.active===undefined)k.active=true;}\n  const live=Object.entries(E.competencies).filter(([,k])=>k&&k.active!==false);if(live.length>maxM){const cand=live.filter(([,k])=>k.scope==='micro'&&Number(k.level||0)<Number(C.micro?.preserveAtOrAbove??4)).sort((a,b)=>Number(a[1].lastUsedTick??0)-Number(b[1].lastUsedTick??0));for(const [id,k] of cand.slice(0,Math.max(0,live.length-maxM))){k.overCap=true;}}\n  while(E.archive.length>maxA)E.archive.shift();\n }\n R.jobs=Number(R.jobs||0)+1;R.revision=Number(R.revision||0)+1;skip=true;\n}"
+    },
+    "sys_competency_consolidation_candidates": {
+      "name": "sys_competency_consolidation_candidates",
+      "recurring": true,
+      "scope": "party",
+      "phase": "state",
+      "conditions": [],
+      "effects": [],
+      "script": "const O=x=>x&&typeof x==='object'&&!Array.isArray(x),C=storage.sys_competency_config??{},G=storage.sys_competency_graph??{},R=storage.sys_competency_runtime??{},tick=Number(check({type:'game-tick'})||0);\nif(C.enabled===false||C.consolidation?.enabled===false||!O(G.entities)){skip=true;}else{\n const need=Math.max(2,Number(C.consolidation?.offerRelatedCount??5)),soft=Math.max(8,Number(C.consolidation?.menuSoftCap??24)),keep=Math.max(2,Number(C.consolidation?.preserveAtOrAbove??4)),P=[];\n for(const [eid,E] of Object.entries(G.entities)){if(!O(E?.competencies))continue;const ks=Object.entries(E.competencies).filter(([,k])=>k&&k.active!==false&&k.scope==='micro'&&Number(k.level||0)<keep),groups={};for(const [id,k] of ks){const parent=String(k.parentId||k.parentName||k.domain||'').trim();if(!parent)continue;(groups[parent]||(groups[parent]=[])).push([id,k]);}for(const [parent,a] of Object.entries(groups)){if(a.length<need&&ks.length<soft)continue;const children=a.map(([id])=>id),mass=a.reduce((s,[,k])=>s+Math.pow(Math.max(0,Number(k.level||0)),2)*Number(k.independenceWeight??1),0),existing=Number(E.competencies[parent]?.mass??0),tx=Number(C.consolidation?.microToSpecialization??.8),newMass=existing+mass*tx,target=Math.floor(Math.sqrt(Math.max(0,newMass)));if(target<1)continue;P.push({proposalId:'cg:'+eid+':'+parent+':'+tick,entityId:eid,targetId:parent,targetName:E.competencies[parent]?.name||parent,children,childCount:children.length,estimatedLevel:target,estimatedMass:newMass,createdTick:tick,status:'offered'});}}\n G.proposals=P.slice(-64);R.lastProposalTick=tick;R.proposalCount=G.proposals.length;if(P.length&&R.lcPresent&&O(storage.sys_lc_continuity_journal)){storage.sys_lc_continuity_journal.push({eventId:'cg-proposals:'+tick,at:Number(storage.sys_clock_absolute_minutes??0),tick,system:'competencyGraph',entityId:'system',kind:'consolidation-candidates',salience:.35,count:P.length,visibility:'system'});}\n skip=true;\n}"
+    },
+    "sys_competency_context_projection": {
+      "name": "sys_competency_context_projection",
+      "recurring": true,
+      "scope": "party",
+      "phase": "planning",
+      "conditions": [],
+      "effects": [],
+      "script": "const O=x=>x&&typeof x==='object'&&!Array.isArray(x),C=storage.sys_competency_config??{},G=storage.sys_competency_graph??{},R=storage.sys_competency_runtime??{},tick=Number(check({type:'game-tick'})||0);\nif(C.enabled===false||C.projection?.enabled===false){skip=true;}else{\n const rows=[],maxA=Math.max(1,Number(C.projection?.maxActorsPerTurn??4)),maxK=Math.max(1,Number(C.projection?.maxCompetenciesPerActor??8)),maxChars=Math.max(300,Number(C.projection?.maxChars??1600));\n let ids=[];\n if(R.lcPresent&&O(storage.sys_lc_actor_capsules?.actors))ids=Object.keys(storage.sys_lc_actor_capsules.actors).slice(0,maxA);\n if(!ids.length)ids=Object.keys(G.entities??{}).slice(0,maxA);\n for(const id of ids){const E=G.entities?.[id];if(!O(E)||!O(E.competencies))continue;const ks=Object.values(E.competencies).filter(k=>k&&k.active!==false).sort((a,b)=>Number(b.salience??0)-Number(a.salience??0)||Number(b.level??0)-Number(a.level??0)).slice(0,maxK);if(!ks.length)continue;rows.push(String(id)+': '+ks.map(k=>String(k.name||k.id)+' '+Number(k.level||0)+(k.scope==='micro'?' [micro]':k.scope==='specialization'?' [specialization]':'')).join(', '));}\n if(!rows.length){const avail=Object.values(C.skills??{}).filter(s=>s&&s.enabled!==false).slice(0,48).map(s=>String(s.name||s.id));if(!avail.length){skip=true;}else{let text=('COMPETENCY VOCABULARY (available categories, not possessed expertise): '+avail.join(', ')+'. Host specialist skills remain authoritative. Use these as broad parents for bounded learned micro-skills; do not infer competence merely because a category exists.').slice(0,maxChars);if(R.lcPresent&&O(storage.sys_lc_context_governor)){storage.sys_competency_context={tick,text,priority:48,system:'competencyGraph',chars:text.length};skip=true;}else{for(let i=0;i<text.length&&effects.length<4;i+=850)effects.push({type:'story',instruction:text.slice(i,i+850)});}}}else{let text='COMPETENCY CONTEXT. Use only as capability evidence; host-specific skills remain authoritative. Do not stack parent/child/synonym skills in one check. Competence does not create knowledge, credentials, authority, access, equipment, or consent.\\n'+rows.join('\\n');text=text.slice(0,maxChars);if(R.lcPresent&&O(storage.sys_lc_context_governor)){storage.sys_competency_context={tick,text,priority:62,system:'competencyGraph',chars:text.length};skip=true;}else{for(let i=0;i<text.length&&effects.length<4;i+=850)effects.push({type:'story',instruction:text.slice(i,i+850)});}}\n}"
+    },
+    "sys_competency_command": {
+      "name": "sys_competency_command",
+      "recurring": true,
+      "scope": "player",
+      "phase": "planning",
+      "conditions": [
+        {
+          "type": "action-text",
+          "operator": "regex",
+          "value": "^\\s*:(?:lc\\s+)?(?:skills?|competenc(?:y|ies))(?:\\s+.*?)?\\s*$"
+        }
+      ],
+      "effects": [],
+      "script": "const O=x=>x&&typeof x==='object'&&!Array.isArray(x),raw0=check({type:'action-text'})||[],raw=(Array.isArray(raw0)?raw0:[raw0]).map(String).join(' ').trim(),m=raw.match(/^\\s*:(?:lc\\s+)?(?:skills?|competenc(?:y|ies))(?:\\s+(.*?))?\\s*$/i),arg=String(m?.[1]||'status').trim(),C=storage.sys_competency_config??{},G=storage.sys_competency_graph??{},R=storage.sys_competency_runtime??{};\nif(!m){skip=true;}else{\n let msg='';const counts=()=>{let entities=0,total=0,micro=0,spec=0,broad=0;for(const E of Object.values(G.entities??{})){if(!O(E?.competencies))continue;entities++;for(const k of Object.values(E.competencies)){if(!k||k.active===false)continue;total++;if(k.scope==='micro')micro++;else if(k.scope==='specialization')spec++;else broad++;}}return {entities,total,micro,spec,broad};};\n if(/^status$/i.test(arg)||!arg){const n=counts();msg='COMPETENCY GRAPH '+(C.enabled===false?'OFF':'ON')+' | '+String(R.integrationMode||'standalone')+' | configured '+Object.keys(C.skills??{}).length+' | entities '+n.entities+' | active '+n.total+' | micro '+n.micro+' | specialization '+n.spec+' | broad/host '+n.broad+' | cleanup '+String(C.consolidation?.cleanupMode??'retain')+'.';}\n else if(/^help$/i.test(arg)){msg='COMPETENCY COMMANDS: :skills status | :skills help | :skills entity <id> | :skills candidates | :skills on|off. LC form :lc skills ... is also accepted. Consolidation execution remains advisory until the native bridge is verified.';}\n else if(/^on$/i.test(arg)){C.enabled=true;storage.sys_competency_config=C;msg='Competency Graph ON.';}\n else if(/^off$/i.test(arg)){C.enabled=false;storage.sys_competency_config=C;msg='Competency Graph OFF.';}\n else if(/^entity\\s+/i.test(arg)){const id=arg.replace(/^entity\\s+/i,'').trim(),E=G.entities?.[id];if(!O(E?.competencies))msg='No competency entity '+id+'.';else{const ks=Object.values(E.competencies).filter(k=>k&&k.active!==false).sort((a,b)=>Number(b.level||0)-Number(a.level||0)).slice(0,24);msg='COMPETENCY '+id+'\\n'+(ks.length?ks.map(k=>'- '+String(k.name||k.id)+' '+Number(k.level||0)+' ['+String(k.scope||'micro')+']').join('\\n'):'No active competencies.');}}\n else if(/^candidates$/i.test(arg)){const P=Array.isArray(G.proposals)?G.proposals:[];msg='CONSOLIDATION CANDIDATES\\n'+(P.length?P.slice(-12).map(p=>'- '+String(p.entityId||'?')+': '+String(p.targetName||p.targetId||'?')+' <= '+(p.children||[]).join(', ')).join('\\n'):'None currently recorded.');}\n else msg='Unknown competency command. Use :skills help.';\n if(R.lcPresent){storage.sys_lc_action_suppressed_tick=Number(check({type:'game-tick'})||0);}\n effects.push({type:'story',instruction:'OUT-OF-WORLD COMPETENCY INTERFACE. '+msg+' Do not advance fiction.'});\n}"
+    },
+    "sys_competency_lc_actor_bridge": {
+      "name": "sys_competency_lc_actor_bridge",
+      "recurring": true,
+      "scope": "party",
+      "phase": "state",
+      "conditions": [],
+      "effects": [],
+      "script": "const O=x=>x&&typeof x==='object'&&!Array.isArray(x),R=storage.sys_competency_runtime??{},G=storage.sys_competency_graph??{},C=storage.sys_competency_config??{},Caps=storage.sys_lc_actor_capsules?.actors;\nif(!R.lcPresent||C.npc?.enabled===false||!O(Caps)||!O(G.entities)){skip=true;}else{const lim=Math.max(1,Number(C.projection?.maxCompetenciesPerActor??8));let changed=0;\nfor(const [id,cap] of Object.entries(Caps)){if(!O(cap))continue;const E=G.entities[id];if(!O(E?.competencies)){if(cap.competencies!==undefined){delete cap.competencies;changed++;}continue;}\n const rows=Object.values(E.competencies).filter(k=>k&&k.active!==false).sort((a,b)=>Number(b.level??0)-Number(a.level??0)||Number(b.salience??0)-Number(a.salience??0)).slice(0,lim).map(k=>({id:k.id,name:k.name||k.id,scope:k.scope||'micro',level:Number(k.level||0),parentId:k.parentId||null}));\n cap.competencies=rows;changed++;}\nif(!changed)skip=true;}"
+    },
+    "sys_competency_lc_context_bridge": {
+      "name": "sys_competency_lc_context_bridge",
+      "recurring": true,
+      "scope": "party",
+      "phase": "planning",
+      "conditions": [],
+      "effects": [],
+      "script": "const O=x=>x&&typeof x==='object'&&!Array.isArray(x),R=storage.sys_competency_runtime??{},C=storage.sys_competency_config??{},G=storage.sys_competency_graph??{},Gov=storage.sys_lc_context_governor,tick=Number(check({type:'game-tick'})||0);\nif(!R.lcPresent||C.projection?.enabled===false||!O(Gov)||Gov.enabled!==true||Number(Gov.tick)!==tick||!Array.isArray(Gov.candidates)){skip=true;}else{\n const maxA=Math.max(1,Number(C.projection?.maxActorsPerTurn??6)),maxK=Math.max(1,Number(C.projection?.maxCompetenciesPerActor??8)),rows=[];let ids=[];\n if(O(storage.sys_lc_actor_capsules?.actors))ids=Object.keys(storage.sys_lc_actor_capsules.actors).slice(0,maxA);if(!ids.length)ids=Object.keys(G.entities??{}).slice(0,maxA);\n for(const id of ids){const E=G.entities?.[id];if(!O(E?.competencies))continue;const ks=Object.values(E.competencies).filter(k=>k&&k.active!==false).sort((a,b)=>Number(b.level??0)-Number(a.level??0)).slice(0,maxK);if(ks.length)rows.push(id+': '+ks.map(k=>(k.name||k.id)+' '+Number(k.level||0)+(k.scope==='micro'?' [micro]':k.scope==='specialization'?' [specialization]':'')).join(', '));}\n if(!rows.length){const avail=Object.values(C.skills??{}).filter(s=>s&&s.enabled!==false).slice(0,48).map(s=>String(s.name||s.id));if(!avail.length){skip=true;}else{const text=('LC COMPETENCY VOCABULARY (available categories, not possessed expertise): '+avail.join(', ')+'. Use as broad taxonomy only; do not infer competence from existence.').slice(0,Math.max(400,Number(C.projection?.maxChars??1800)));Gov.candidates.push({id:'competency-taxonomy:'+tick,system:'competencyGraph',priority:46,required:false,tier:'passive',stableKey:'competency-taxonomy:'+String(G.revision||0),text,estimatedChars:text.length});}}else{const text=('LC COMPETENCY: '+rows.join(' | ')+'. Capability evidence only. Host specialist skills outrank broad competency. Never stack parent/child/synonyms. Competence does not create knowledge, credentials, authority, access, equipment, consent, or communication channels.').slice(0,Math.max(400,Number(C.projection?.maxChars??1800)));Gov.candidates.push({id:'competency:'+tick,system:'competencyGraph',priority:74,required:false,tier:'active',stableKey:'competency:'+String(G.revision||0),text,estimatedChars:text.length});}\n}"
+    },
+    "sys_competency_seed_general_01": {
+      "name": "sys_competency_seed_general_01",
+      "recurring": true,
+      "scope": "party",
+      "phase": "state",
+      "conditions": [],
+      "effects": [],
+      "script": "const O=x=>x&&typeof x==='object'&&!Array.isArray(x),C=storage.sys_competency_config;if(!O(C)){skip=true;}else{C.skills=O(C.skills)?C.skills:{};C.aliases=O(C.aliases)?C.aliases:{};const S={\"sw:athletics\":{\"id\":\"sw:athletics\",\"name\":\"athletics\",\"scope\":\"broad\",\"domain\":\"physical\",\"affinity\":\"body\",\"description\":\"Running, climbing, swimming, lifting, hauling, jumping, and other whole-body exertion. General physical capability, not combat technique.\",\"aliases\":[\"physical fitness\",\"climbing\",\"swimming\"],\"microExamples\":[\"Rope Climbing\",\"Distance Swimming\",\"Heavy Load Carrying\"],\"enabled\":true,\"source\":\"lc-skillweave-default\",\"hostEquivalent\":\"athletics\"},\"sw:acrobatics\":{\"id\":\"sw:acrobatics\",\"name\":\"acrobatics\",\"scope\":\"broad\",\"domain\":\"physical\",\"affinity\":\"agility\",\"description\":\"Balance, tumbling, controlled falls, tight footing, flexible movement, and precise whole-body positioning.\",\"aliases\":[\"balance\",\"tumbling\",\"gymnastics\"],\"microExamples\":[\"Beam Balance\",\"Controlled Falling\",\"Vaulting\"],\"enabled\":true,\"source\":\"lc-skillweave-default\",\"hostEquivalent\":\"acrobatics\"},\"sw:stealth\":{\"id\":\"sw:stealth\",\"name\":\"stealth\",\"scope\":\"broad\",\"domain\":\"physical\",\"affinity\":\"agility\",\"description\":\"Moving, positioning, hiding, and managing noise or visibility to avoid notice. Does not grant disguise, deception, or security bypass.\",\"aliases\":[\"sneaking\",\"sneak\"],\"microExamples\":[\"Urban Shadowing\",\"Silent Indoor Movement\",\"Natural-Cover Concealment\"],\"enabled\":true,\"source\":\"lc-skillweave-default\",\"hostEquivalent\":\"stealth\"},\"sw:fine-manipulation\":{\"id\":\"sw:fine-manipulation\",\"name\":\"fine manipulation\",\"scope\":\"broad\",\"domain\":\"physical\",\"affinity\":\"agility\",\"description\":\"Precise hand work, delicate manipulation, knots, small mechanisms, and careful tool handling where technique matters more than force.\",\"aliases\":[\"manual dexterity\",\"sleight of hand\"],\"microExamples\":[\"Surgical Knot Tying\",\"Watch Spring Handling\",\"Fine Solder Placement\"],\"enabled\":true,\"source\":\"lc-skillweave-default\",\"hostEquivalent\":\"fine-manipulation\"},\"sw:endurance\":{\"id\":\"sw:endurance\",\"name\":\"endurance\",\"scope\":\"broad\",\"domain\":\"physical\",\"affinity\":\"body\",\"description\":\"Sustained exertion, pacing, fatigue management, repetitive labor, and remaining effective during long physical tasks.\",\"aliases\":[\"stamina\",\"conditioning\"],\"microExamples\":[\"Long-Distance Marching\",\"Heat Work Pacing\",\"Shift-Length Manual Labor\"],\"enabled\":true,\"source\":\"lc-skillweave-default\",\"hostEquivalent\":\"endurance\"},\"sw:transport-handling\":{\"id\":\"sw:transport-handling\",\"name\":\"transport handling\",\"scope\":\"broad\",\"domain\":\"physical\",\"affinity\":\"agility\",\"description\":\"Operating familiar personal or civilian conveyances using learned control habits. It does not grant familiarity with an unknown vehicle class.\",\"aliases\":[\"driving\",\"riding\",\"piloting\"],\"microExamples\":[\"Horse Riding\",\"Forklift Driving\",\"Small-Boat Handling\"],\"enabled\":true,\"source\":\"lc-skillweave-default\",\"hostEquivalent\":\"transport-handling\"}},A={\"athletics\":\"sw:athletics\",\"physical fitness\":\"sw:athletics\",\"climbing\":\"sw:athletics\",\"swimming\":\"sw:athletics\",\"acrobatics\":\"sw:acrobatics\",\"balance\":\"sw:acrobatics\",\"tumbling\":\"sw:acrobatics\",\"gymnastics\":\"sw:acrobatics\",\"stealth\":\"sw:stealth\",\"sneaking\":\"sw:stealth\",\"sneak\":\"sw:stealth\",\"fine manipulation\":\"sw:fine-manipulation\",\"manual dexterity\":\"sw:fine-manipulation\",\"sleight of hand\":\"sw:fine-manipulation\",\"endurance\":\"sw:endurance\",\"stamina\":\"sw:endurance\",\"conditioning\":\"sw:endurance\",\"transport handling\":\"sw:transport-handling\",\"driving\":\"sw:transport-handling\",\"riding\":\"sw:transport-handling\",\"piloting\":\"sw:transport-handling\"};for(const [id,v] of Object.entries(S))if(C.skills[id]===undefined)C.skills[id]=v;for(const [a,id] of Object.entries(A))if(C.aliases[a]===undefined)C.aliases[a]=id;const G=storage.sys_competency_graph;if(O(G)){G.taxonomy=O(G.taxonomy)?G.taxonomy:{};G.aliases=O(G.aliases)?G.aliases:{};for(const [id,v] of Object.entries(S))if(C.skills[id]&&C.skills[id].enabled!==false)G.taxonomy[id]=Object.assign({id,scope:'broad',source:'config'},C.skills[id]);for(const [a,id] of Object.entries(A))if(G.aliases[a]===undefined)G.aliases[a]=C.aliases[a];G.revision=Number(G.revision||0)+1;}skip=true;}"
+    },
+    "sys_competency_seed_general_02": {
+      "name": "sys_competency_seed_general_02",
+      "recurring": true,
+      "scope": "party",
+      "phase": "state",
+      "conditions": [],
+      "effects": [],
+      "script": "const O=x=>x&&typeof x==='object'&&!Array.isArray(x),C=storage.sys_competency_config;if(!O(C)){skip=true;}else{C.skills=O(C.skills)?C.skills:{};C.aliases=O(C.aliases)?C.aliases:{};const S={\"sw:awareness\":{\"id\":\"sw:awareness\",\"name\":\"awareness\",\"scope\":\"broad\",\"domain\":\"perception\",\"affinity\":\"awareness\",\"description\":\"Immediate situational perception: noticing hazards, movement, sounds, changes, and relevant visible details without conducting a formal search.\",\"aliases\":[\"perception\",\"observation\"],\"microExamples\":[\"Crowd Hazard Awareness\",\"Machine-Sound Monitoring\",\"Night Watch\"],\"enabled\":true,\"source\":\"lc-skillweave-default\",\"hostEquivalent\":\"awareness\"},\"sw:investigation\":{\"id\":\"sw:investigation\",\"name\":\"investigation\",\"scope\":\"broad\",\"domain\":\"perception\",\"affinity\":\"mind\",\"description\":\"Deliberate searching, evidence comparison, reconstruction, interviews for facts, and resolving questions from available clues.\",\"aliases\":[\"search\",\"detective work\"],\"microExamples\":[\"Scene Reconstruction\",\"Archive Cross-Checking\",\"Interview Note Comparison\"],\"enabled\":true,\"source\":\"lc-skillweave-default\",\"hostEquivalent\":\"investigation\"},\"sw:insight\":{\"id\":\"sw:insight\",\"name\":\"insight\",\"scope\":\"broad\",\"domain\":\"perception\",\"affinity\":\"awareness\",\"description\":\"Reading motives, sincerity, discomfort, social inconsistencies, emotional state, and interpersonal dynamics from behavior and context.\",\"aliases\":[\"empathy\",\"sense motive\"],\"microExamples\":[\"Negotiation Tell Reading\",\"Interview Rapport Reading\",\"Group-Tension Reading\"],\"enabled\":true,\"source\":\"lc-skillweave-default\",\"hostEquivalent\":\"insight\"},\"sw:navigation\":{\"id\":\"sw:navigation\",\"name\":\"navigation\",\"scope\":\"broad\",\"domain\":\"field\",\"affinity\":\"awareness\",\"description\":\"Wayfinding with maps, landmarks, routes, instruments, stars, signage, or remembered geography. Does not create knowledge of an unmapped place.\",\"aliases\":[\"wayfinding\",\"cartography\"],\"microExamples\":[\"Topographic Map Reading\",\"Urban Transit Navigation\",\"Celestial Wayfinding\"],\"enabled\":true,\"source\":\"lc-skillweave-default\",\"hostEquivalent\":\"navigation\"},\"sw:survival\":{\"id\":\"sw:survival\",\"name\":\"survival\",\"scope\":\"broad\",\"domain\":\"field\",\"affinity\":\"awareness\",\"description\":\"General self-sufficiency away from normal infrastructure: shelter, fire, water, weather, foraging, camping, and ordinary field precautions.\",\"aliases\":[\"outdoorsmanship\",\"wilderness survival\"],\"microExamples\":[\"Wet-Weather Firemaking\",\"Desert Water Discipline\",\"Cold-Weather Shelter\"],\"enabled\":true,\"source\":\"lc-skillweave-default\",\"hostEquivalent\":\"survival\"},\"sw:persuasion\":{\"id\":\"sw:persuasion\",\"name\":\"persuasion\",\"scope\":\"broad\",\"domain\":\"social\",\"affinity\":\"presence\",\"description\":\"Convincing others through reasons, framing, credibility, appeals, or advocacy. It changes receptiveness, not another person's agency.\",\"aliases\":[\"diplomacy\",\"convincing\"],\"microExamples\":[\"Public Advocacy\",\"Sales Pitching\",\"Personal Appeal\"],\"enabled\":true,\"source\":\"lc-skillweave-default\",\"hostEquivalent\":\"persuasion\"}},A={\"awareness\":\"sw:awareness\",\"perception\":\"sw:awareness\",\"observation\":\"sw:awareness\",\"investigation\":\"sw:investigation\",\"search\":\"sw:investigation\",\"detective work\":\"sw:investigation\",\"insight\":\"sw:insight\",\"empathy\":\"sw:insight\",\"sense motive\":\"sw:insight\",\"navigation\":\"sw:navigation\",\"wayfinding\":\"sw:navigation\",\"cartography\":\"sw:navigation\",\"survival\":\"sw:survival\",\"outdoorsmanship\":\"sw:survival\",\"wilderness survival\":\"sw:survival\",\"persuasion\":\"sw:persuasion\",\"diplomacy\":\"sw:persuasion\",\"convincing\":\"sw:persuasion\"};for(const [id,v] of Object.entries(S))if(C.skills[id]===undefined)C.skills[id]=v;for(const [a,id] of Object.entries(A))if(C.aliases[a]===undefined)C.aliases[a]=id;const G=storage.sys_competency_graph;if(O(G)){G.taxonomy=O(G.taxonomy)?G.taxonomy:{};G.aliases=O(G.aliases)?G.aliases:{};for(const [id,v] of Object.entries(S))if(C.skills[id]&&C.skills[id].enabled!==false)G.taxonomy[id]=Object.assign({id,scope:'broad',source:'config'},C.skills[id]);for(const [a,id] of Object.entries(A))if(G.aliases[a]===undefined)G.aliases[a]=C.aliases[a];G.revision=Number(G.revision||0)+1;}skip=true;}"
+    },
+    "sys_competency_seed_general_03": {
+      "name": "sys_competency_seed_general_03",
+      "recurring": true,
+      "scope": "party",
+      "phase": "state",
+      "conditions": [],
+      "effects": [],
+      "script": "const O=x=>x&&typeof x==='object'&&!Array.isArray(x),C=storage.sys_competency_config;if(!O(C)){skip=true;}else{C.skills=O(C.skills)?C.skills:{};C.aliases=O(C.aliases)?C.aliases:{};const S={\"sw:negotiation\":{\"id\":\"sw:negotiation\",\"name\":\"negotiation\",\"scope\":\"broad\",\"domain\":\"social\",\"affinity\":\"presence\",\"description\":\"Finding and shaping terms among parties with interests, constraints, concessions, prices, or trade-offs.\",\"aliases\":[\"bargaining\",\"haggling\"],\"microExamples\":[\"Lease Negotiation\",\"Vendor Bargaining\",\"Ceasefire Terms\"],\"enabled\":true,\"source\":\"lc-skillweave-default\",\"hostEquivalent\":\"negotiation\"},\"sw:deception\":{\"id\":\"sw:deception\",\"name\":\"deception\",\"scope\":\"broad\",\"domain\":\"social\",\"affinity\":\"presence\",\"description\":\"Creating and maintaining plausible false impressions, stories, omissions, and misdirection. Does not grant disguise craftsmanship or forged credentials.\",\"aliases\":[\"bluff\",\"lying\"],\"microExamples\":[\"Cover Story Maintenance\",\"Misdirecting Questioning\",\"False Identity Conversation\"],\"enabled\":true,\"source\":\"lc-skillweave-default\",\"hostEquivalent\":\"deception\"},\"sw:intimidation\":{\"id\":\"sw:intimidation\",\"name\":\"intimidation\",\"scope\":\"broad\",\"domain\":\"social\",\"affinity\":\"presence\",\"description\":\"Applying credible social pressure, threat, dominance, or consequence to influence behavior. It does not compel impossible obedience.\",\"aliases\":[\"coercion\"],\"microExamples\":[\"Command Presence\",\"Credible Warning\",\"Interrogation Pressure\"],\"enabled\":true,\"source\":\"lc-skillweave-default\",\"hostEquivalent\":\"intimidation\"},\"sw:etiquette\":{\"id\":\"sw:etiquette\",\"name\":\"etiquette\",\"scope\":\"broad\",\"domain\":\"social\",\"affinity\":\"presence\",\"description\":\"Applying learned manners, protocol, hospitality expectations, formal behavior, and context-appropriate social conventions.\",\"aliases\":[\"protocol\",\"manners\"],\"microExamples\":[\"Court Etiquette\",\"Business Dinner Protocol\",\"Religious Guest Protocol\"],\"enabled\":true,\"source\":\"lc-skillweave-default\",\"hostEquivalent\":\"etiquette\"},\"sw:leadership\":{\"id\":\"sw:leadership\",\"name\":\"leadership\",\"scope\":\"broad\",\"domain\":\"social\",\"affinity\":\"presence\",\"description\":\"Coordinating people around a goal through direction, delegation, morale, accountability, and decision-making.\",\"aliases\":[\"command\",\"team leadership\"],\"microExamples\":[\"Shift Supervision\",\"Emergency Team Direction\",\"Volunteer Coordination\"],\"enabled\":true,\"source\":\"lc-skillweave-default\",\"hostEquivalent\":\"leadership\"},\"sw:mediation\":{\"id\":\"sw:mediation\",\"name\":\"mediation\",\"scope\":\"broad\",\"domain\":\"social\",\"affinity\":\"presence\",\"description\":\"De-escalating interpersonal conflict, clarifying positions, facilitating compromise, and keeping disputes productive.\",\"aliases\":[\"conflict resolution\"],\"microExamples\":[\"Workplace Mediation\",\"Family Dispute Mediation\",\"Community Facilitation\"],\"enabled\":true,\"source\":\"lc-skillweave-default\",\"hostEquivalent\":\"mediation\"}},A={\"negotiation\":\"sw:negotiation\",\"bargaining\":\"sw:negotiation\",\"haggling\":\"sw:negotiation\",\"deception\":\"sw:deception\",\"bluff\":\"sw:deception\",\"lying\":\"sw:deception\",\"intimidation\":\"sw:intimidation\",\"coercion\":\"sw:intimidation\",\"etiquette\":\"sw:etiquette\",\"protocol\":\"sw:etiquette\",\"manners\":\"sw:etiquette\",\"leadership\":\"sw:leadership\",\"command\":\"sw:leadership\",\"team leadership\":\"sw:leadership\",\"mediation\":\"sw:mediation\",\"conflict resolution\":\"sw:mediation\"};for(const [id,v] of Object.entries(S))if(C.skills[id]===undefined)C.skills[id]=v;for(const [a,id] of Object.entries(A))if(C.aliases[a]===undefined)C.aliases[a]=id;const G=storage.sys_competency_graph;if(O(G)){G.taxonomy=O(G.taxonomy)?G.taxonomy:{};G.aliases=O(G.aliases)?G.aliases:{};for(const [id,v] of Object.entries(S))if(C.skills[id]&&C.skills[id].enabled!==false)G.taxonomy[id]=Object.assign({id,scope:'broad',source:'config'},C.skills[id]);for(const [a,id] of Object.entries(A))if(G.aliases[a]===undefined)G.aliases[a]=C.aliases[a];G.revision=Number(G.revision||0)+1;}skip=true;}"
+    },
+    "sys_competency_seed_general_04": {
+      "name": "sys_competency_seed_general_04",
+      "recurring": true,
+      "scope": "party",
+      "phase": "state",
+      "conditions": [],
+      "effects": [],
+      "script": "const O=x=>x&&typeof x==='object'&&!Array.isArray(x),C=storage.sys_competency_config;if(!O(C)){skip=true;}else{C.skills=O(C.skills)?C.skills:{};C.aliases=O(C.aliases)?C.aliases:{};const S={\"sw:teaching\":{\"id\":\"sw:teaching\",\"name\":\"teaching\",\"scope\":\"broad\",\"domain\":\"social\",\"affinity\":\"mind\",\"description\":\"Explaining, demonstrating, coaching, correcting, and structuring practice so another person can learn a bounded subject.\",\"aliases\":[\"instruction\",\"coaching\"],\"microExamples\":[\"Literacy Tutoring\",\"Tool-Safety Instruction\",\"Apprentice Demonstration\"],\"enabled\":true,\"source\":\"lc-skillweave-default\",\"hostEquivalent\":\"teaching\"},\"sw:performance\":{\"id\":\"sw:performance\",\"name\":\"performance\",\"scope\":\"broad\",\"domain\":\"social\",\"affinity\":\"presence\",\"description\":\"Deliberate presentation for an audience: acting, public speaking, storytelling, stage presence, and entertainment technique.\",\"aliases\":[\"acting\",\"public speaking\"],\"microExamples\":[\"Stage Acting\",\"Formal Oratory\",\"Comic Storytelling\"],\"enabled\":true,\"source\":\"lc-skillweave-default\",\"hostEquivalent\":\"performance\"},\"sw:cooking\":{\"id\":\"sw:cooking\",\"name\":\"cooking\",\"scope\":\"broad\",\"domain\":\"domestic\",\"affinity\":\"mind\",\"description\":\"Preparing safe and appealing food and drink using familiar ingredients, tools, heat, timing, preservation, and kitchen workflow.\",\"aliases\":[\"culinary\",\"food preparation\"],\"microExamples\":[\"Sourdough Baking\",\"Open-Fire Cooking\",\"Food Preservation\"],\"enabled\":true,\"source\":\"lc-skillweave-default\",\"hostEquivalent\":\"cooking\"},\"sw:housekeeping\":{\"id\":\"sw:housekeeping\",\"name\":\"housekeeping\",\"scope\":\"broad\",\"domain\":\"domestic\",\"affinity\":\"mind\",\"description\":\"Cleaning, laundry, sanitation, routine domestic organization, and keeping living spaces functional and hygienic.\",\"aliases\":[\"cleaning\",\"domestic management\"],\"microExamples\":[\"Laundry Care\",\"Kitchen Sanitation\",\"Room Turnover\"],\"enabled\":true,\"source\":\"lc-skillweave-default\",\"hostEquivalent\":\"housekeeping\"},\"sw:textiles\":{\"id\":\"sw:textiles\",\"name\":\"textiles\",\"scope\":\"broad\",\"domain\":\"domestic\",\"affinity\":\"agility\",\"description\":\"Working with cloth, thread, garments, soft leather, and related materials for sewing, fitting, mending, and routine fabrication.\",\"aliases\":[\"sewing\",\"tailoring\"],\"microExamples\":[\"Button Repair\",\"Garment Fitting\",\"Leather Patch Sewing\"],\"enabled\":true,\"source\":\"lc-skillweave-default\",\"hostEquivalent\":\"textiles\"},\"sw:caregiving\":{\"id\":\"sw:caregiving\",\"name\":\"caregiving\",\"scope\":\"broad\",\"domain\":\"care\",\"affinity\":\"awareness\",\"description\":\"Routine practical care for another person's daily needs, comfort, mobility, hygiene, supervision, and support.\",\"aliases\":[\"nursing care\",\"dependent care\"],\"microExamples\":[\"Elder Transfer Assistance\",\"Infant Care Routine\",\"Mobility Assistance\"],\"enabled\":true,\"source\":\"lc-skillweave-default\",\"hostEquivalent\":\"caregiving\"}},A={\"teaching\":\"sw:teaching\",\"instruction\":\"sw:teaching\",\"coaching\":\"sw:teaching\",\"performance\":\"sw:performance\",\"acting\":\"sw:performance\",\"public speaking\":\"sw:performance\",\"cooking\":\"sw:cooking\",\"culinary\":\"sw:cooking\",\"food preparation\":\"sw:cooking\",\"housekeeping\":\"sw:housekeeping\",\"cleaning\":\"sw:housekeeping\",\"domestic management\":\"sw:housekeeping\",\"textiles\":\"sw:textiles\",\"sewing\":\"sw:textiles\",\"tailoring\":\"sw:textiles\",\"caregiving\":\"sw:caregiving\",\"nursing care\":\"sw:caregiving\",\"dependent care\":\"sw:caregiving\"};for(const [id,v] of Object.entries(S))if(C.skills[id]===undefined)C.skills[id]=v;for(const [a,id] of Object.entries(A))if(C.aliases[a]===undefined)C.aliases[a]=id;const G=storage.sys_competency_graph;if(O(G)){G.taxonomy=O(G.taxonomy)?G.taxonomy:{};G.aliases=O(G.aliases)?G.aliases:{};for(const [id,v] of Object.entries(S))if(C.skills[id]&&C.skills[id].enabled!==false)G.taxonomy[id]=Object.assign({id,scope:'broad',source:'config'},C.skills[id]);for(const [a,id] of Object.entries(A))if(G.aliases[a]===undefined)G.aliases[a]=C.aliases[a];G.revision=Number(G.revision||0)+1;}skip=true;}"
+    },
+    "sys_competency_seed_general_05": {
+      "name": "sys_competency_seed_general_05",
+      "recurring": true,
+      "scope": "party",
+      "phase": "state",
+      "conditions": [],
+      "effects": [],
+      "script": "const O=x=>x&&typeof x==='object'&&!Array.isArray(x),C=storage.sys_competency_config;if(!O(C)){skip=true;}else{C.skills=O(C.skills)?C.skills:{};C.aliases=O(C.aliases)?C.aliases:{};const S={\"sw:first-aid\":{\"id\":\"sw:first-aid\",\"name\":\"first aid\",\"scope\":\"broad\",\"domain\":\"care\",\"affinity\":\"mind\",\"description\":\"Immediate non-specialist assessment and stabilization of injury or sudden illness until recovery or higher-level care is available.\",\"aliases\":[\"medicine\",\"medical aid\"],\"microExamples\":[\"Wound Dressing\",\"Splinting\",\"Burn First Aid\"],\"enabled\":true,\"source\":\"lc-skillweave-default\",\"hostEquivalent\":\"first-aid\"},\"sw:agriculture\":{\"id\":\"sw:agriculture\",\"name\":\"agriculture\",\"scope\":\"broad\",\"domain\":\"domestic\",\"affinity\":\"awareness\",\"description\":\"Routine cultivation and food-production work: planting, soil care, harvesting, basic irrigation, and ordinary husbandry workflows.\",\"aliases\":[\"farming\",\"gardening\"],\"microExamples\":[\"Orchard Pruning\",\"Rice-Paddy Tending\",\"Hydroponic Crop Care\"],\"enabled\":true,\"source\":\"lc-skillweave-default\",\"hostEquivalent\":\"agriculture\"},\"sw:animal-handling\":{\"id\":\"sw:animal-handling\",\"name\":\"animal handling\",\"scope\":\"broad\",\"domain\":\"domestic\",\"affinity\":\"awareness\",\"description\":\"Safely approaching, calming, directing, restraining, caring for, and working around familiar animals.\",\"aliases\":[\"animal care\",\"husbandry\"],\"microExamples\":[\"Horse Grooming\",\"Dog Handling\",\"Livestock Restraint\"],\"enabled\":true,\"source\":\"lc-skillweave-default\",\"hostEquivalent\":\"animal-handling\"},\"sw:commerce\":{\"id\":\"sw:commerce\",\"name\":\"commerce\",\"scope\":\"broad\",\"domain\":\"work\",\"affinity\":\"presence\",\"description\":\"Buying, selling, pricing, customer interaction, market judgment, and practical exchange. Does not replace accounting or formal negotiation.\",\"aliases\":[\"trade\",\"sales\",\"merchant\"],\"microExamples\":[\"Retail Sales\",\"Market Stall Trading\",\"Wholesale Purchasing\"],\"enabled\":true,\"source\":\"lc-skillweave-default\",\"hostEquivalent\":\"commerce\"},\"sw:administration\":{\"id\":\"sw:administration\",\"name\":\"administration\",\"scope\":\"broad\",\"domain\":\"work\",\"affinity\":\"mind\",\"description\":\"Forms, records, scheduling, routine bureaucracy, office workflow, correspondence handling, and institutional process.\",\"aliases\":[\"bureaucracy\",\"office work\"],\"microExamples\":[\"Court Filing Procedure\",\"Appointment Scheduling\",\"Permit Processing\"],\"enabled\":true,\"source\":\"lc-skillweave-default\",\"hostEquivalent\":\"administration\"},\"sw:logistics\":{\"id\":\"sw:logistics\",\"name\":\"logistics\",\"scope\":\"broad\",\"domain\":\"work\",\"affinity\":\"mind\",\"description\":\"Coordinating supplies, inventory, storage, transport, routing, handoffs, and resource availability across a practical operation.\",\"aliases\":[\"supply\",\"inventory management\"],\"microExamples\":[\"Warehouse Picking\",\"Convoy Loading\",\"Cold-Chain Handling\"],\"enabled\":true,\"source\":\"lc-skillweave-default\",\"hostEquivalent\":\"logistics\"}},A={\"first aid\":\"sw:first-aid\",\"medicine\":\"sw:first-aid\",\"medical aid\":\"sw:first-aid\",\"agriculture\":\"sw:agriculture\",\"farming\":\"sw:agriculture\",\"gardening\":\"sw:agriculture\",\"animal handling\":\"sw:animal-handling\",\"animal care\":\"sw:animal-handling\",\"husbandry\":\"sw:animal-handling\",\"commerce\":\"sw:commerce\",\"trade\":\"sw:commerce\",\"sales\":\"sw:commerce\",\"merchant\":\"sw:commerce\",\"administration\":\"sw:administration\",\"bureaucracy\":\"sw:administration\",\"office work\":\"sw:administration\",\"logistics\":\"sw:logistics\",\"supply\":\"sw:logistics\",\"inventory management\":\"sw:logistics\"};for(const [id,v] of Object.entries(S))if(C.skills[id]===undefined)C.skills[id]=v;for(const [a,id] of Object.entries(A))if(C.aliases[a]===undefined)C.aliases[a]=id;const G=storage.sys_competency_graph;if(O(G)){G.taxonomy=O(G.taxonomy)?G.taxonomy:{};G.aliases=O(G.aliases)?G.aliases:{};for(const [id,v] of Object.entries(S))if(C.skills[id]&&C.skills[id].enabled!==false)G.taxonomy[id]=Object.assign({id,scope:'broad',source:'config'},C.skills[id]);for(const [a,id] of Object.entries(A))if(G.aliases[a]===undefined)G.aliases[a]=C.aliases[a];G.revision=Number(G.revision||0)+1;}skip=true;}"
+    },
+    "sys_competency_seed_general_06": {
+      "name": "sys_competency_seed_general_06",
+      "recurring": true,
+      "scope": "party",
+      "phase": "state",
+      "conditions": [],
+      "effects": [],
+      "script": "const O=x=>x&&typeof x==='object'&&!Array.isArray(x),C=storage.sys_competency_config;if(!O(C)){skip=true;}else{C.skills=O(C.skills)?C.skills:{};C.aliases=O(C.aliases)?C.aliases:{};const S={\"sw:research-study\":{\"id\":\"sw:research-study\",\"name\":\"research & study\",\"scope\":\"broad\",\"domain\":\"knowledge\",\"affinity\":\"mind\",\"description\":\"Finding, evaluating, organizing, and learning from sources or instruction. It does not create access to unavailable information.\",\"aliases\":[\"research\",\"study\",\"scholarship\"],\"microExamples\":[\"Archive Research\",\"Literature Review\",\"Field Guide Study\"],\"enabled\":true,\"source\":\"lc-skillweave-default\",\"hostEquivalent\":\"research-study\"},\"sw:writing-records\":{\"id\":\"sw:writing-records\",\"name\":\"writing & records\",\"scope\":\"broad\",\"domain\":\"knowledge\",\"affinity\":\"mind\",\"description\":\"Producing clear correspondence, reports, notes, documentation, transcription, and durable records appropriate to context.\",\"aliases\":[\"writing\",\"documentation\"],\"microExamples\":[\"Incident Reporting\",\"Technical Note Taking\",\"Business Correspondence\"],\"enabled\":true,\"source\":\"lc-skillweave-default\",\"hostEquivalent\":\"writing-records\"},\"sw:planning-organization\":{\"id\":\"sw:planning-organization\",\"name\":\"planning & organization\",\"scope\":\"broad\",\"domain\":\"work\",\"affinity\":\"mind\",\"description\":\"Breaking goals into steps, sequencing work, estimating requirements, setting priorities, and coordinating time and resources.\",\"aliases\":[\"planning\",\"organization\",\"project management\"],\"microExamples\":[\"Event Planning\",\"Work Breakdown\",\"Travel Preparation\"],\"enabled\":true,\"source\":\"lc-skillweave-default\",\"hostEquivalent\":\"planning-organization\"},\"sw:crafting\":{\"id\":\"sw:crafting\",\"name\":\"crafting\",\"scope\":\"broad\",\"domain\":\"making\",\"affinity\":\"agility\",\"description\":\"General hands-on fabrication and shaping of familiar materials into useful objects. It does not grant specialist industrial or magical disciplines.\",\"aliases\":[\"handicraft\",\"fabrication\"],\"microExamples\":[\"Wood Joinery\",\"Pottery Throwing\",\"Leather Tooling\"],\"enabled\":true,\"source\":\"lc-skillweave-default\",\"hostEquivalent\":\"crafting\"},\"sw:repair-maintenance\":{\"id\":\"sw:repair-maintenance\",\"name\":\"repair & maintenance\",\"scope\":\"broad\",\"domain\":\"making\",\"affinity\":\"mind\",\"description\":\"Inspecting, troubleshooting, maintaining, and restoring familiar equipment, fixtures, and systems. It does not grant unknown-system expertise.\",\"aliases\":[\"repair\",\"maintenance\",\"mechanics\"],\"microExamples\":[\"Residential Plumbing Repair\",\"Bicycle Repair\",\"Generator Maintenance\"],\"enabled\":true,\"source\":\"lc-skillweave-default\",\"hostEquivalent\":\"repair-maintenance\"},\"sw:technical-operation\":{\"id\":\"sw:technical-operation\",\"name\":\"technical operation\",\"scope\":\"broad\",\"domain\":\"technical\",\"affinity\":\"mind\",\"description\":\"Operating complex familiar tools, machinery, consoles, instruments, and procedural equipment correctly and safely.\",\"aliases\":[\"machine operation\",\"equipment operation\"],\"microExamples\":[\"Forklift Operation\",\"Laboratory Centrifuge Operation\",\"Airlock Console Operation\"],\"enabled\":true,\"source\":\"lc-skillweave-default\",\"hostEquivalent\":\"technical-operation\"}},A={\"research & study\":\"sw:research-study\",\"research\":\"sw:research-study\",\"study\":\"sw:research-study\",\"scholarship\":\"sw:research-study\",\"writing & records\":\"sw:writing-records\",\"writing\":\"sw:writing-records\",\"documentation\":\"sw:writing-records\",\"planning & organization\":\"sw:planning-organization\",\"planning\":\"sw:planning-organization\",\"organization\":\"sw:planning-organization\",\"project management\":\"sw:planning-organization\",\"crafting\":\"sw:crafting\",\"handicraft\":\"sw:crafting\",\"fabrication\":\"sw:crafting\",\"repair & maintenance\":\"sw:repair-maintenance\",\"repair\":\"sw:repair-maintenance\",\"maintenance\":\"sw:repair-maintenance\",\"mechanics\":\"sw:repair-maintenance\",\"technical operation\":\"sw:technical-operation\",\"machine operation\":\"sw:technical-operation\",\"equipment operation\":\"sw:technical-operation\"};for(const [id,v] of Object.entries(S))if(C.skills[id]===undefined)C.skills[id]=v;for(const [a,id] of Object.entries(A))if(C.aliases[a]===undefined)C.aliases[a]=id;const G=storage.sys_competency_graph;if(O(G)){G.taxonomy=O(G.taxonomy)?G.taxonomy:{};G.aliases=O(G.aliases)?G.aliases:{};for(const [id,v] of Object.entries(S))if(C.skills[id]&&C.skills[id].enabled!==false)G.taxonomy[id]=Object.assign({id,scope:'broad',source:'config'},C.skills[id]);for(const [a,id] of Object.entries(A))if(G.aliases[a]===undefined)G.aliases[a]=C.aliases[a];G.revision=Number(G.revision||0)+1;}skip=true;}"
+    }
+  },
+  "narratorStyle": "",
+  "storySettings": {
+    "worldBackground": "",
+    "questGenerationGuidance": ""
+  },
+  "attributeSettings": {
+    "attributeNames": [
+      ""
+    ],
+    "lowAttributeTraits": {},
+    "maxStartingAttribute": 16,
+    "lowAttributeThreshold": 2,
+    "attributeBonusModifier": 2.5,
+    "attributeStatModifiers": {},
+    "attributeDamageModifiers": {},
+    "attributeDamageReductionModifiers": {},
+    "startingAttributeValue": 8,
+    "startingAttributePoints": 16
+  },
+  "successLevelSettings": {
+    "firstSuccessfulTierId": "mixed-results",
+    "tiers": [
+      {
+        "id": "critical-failure",
+        "name": "Critical Failure",
+        "minScore": null,
+        "maxScore": -66,
+        "imageUrl": "",
+        "prompt": "[Note: {{characterName}} tries to do the action, but it fails in a dramatic, catastrophic way - if enemies are present, consider framing the failure as partly the result of an enemy's cleverness, tactics, or intervention that thwarts the attempt, rather than the player merely being inept.]"
+      },
+      {
+        "id": "failure",
+        "name": "Failure",
+        "minScore": -65,
+        "maxScore": -51,
+        "imageUrl": "",
+        "prompt": "[Note: {{characterName}} tries to do the action, but it fails - if enemies are present, consider framing the failure as partly the result of an enemy's cleverness, tactics, or intervention that thwarts the attempt, rather than the player merely being inept.]"
+      },
+      {
+        "id": "mixed-results",
+        "name": "Mixed Results",
+        "minScore": -50,
+        "maxScore": -26,
+        "imageUrl": "",
+        "prompt": "[Note: {{characterName}} does the action, but it is only partially successful with mixed results.]"
+      },
+      {
+        "id": "basic-success",
+        "name": "Basic Success",
+        "minScore": -25,
+        "maxScore": -1,
+        "imageUrl": "",
+        "prompt": "[Note: {{characterName}}'s action is successful.]"
+      },
+      {
+        "id": "success",
+        "name": "Success",
+        "minScore": 0,
+        "maxScore": 24,
+        "imageUrl": "",
+        "prompt": "[Note: {{characterName}}'s action is quite successful.]"
+      },
+      {
+        "id": "great-success",
+        "name": "Great Success",
+        "minScore": 25,
+        "maxScore": 49,
+        "imageUrl": "",
+        "prompt": "[Note: {{characterName}}'s action is very successful.]"
+      },
+      {
+        "id": "critical-success",
+        "name": "Critical Success",
+        "minScore": 50,
+        "maxScore": null,
+        "imageUrl": "",
+        "prompt": "[Note: {{characterName}}'s action is amazingly successful in an awesome way.]"
+      }
+    ]
+  },
+  "skillSettings": {
+    "maxSkillLevel": 25,
+    "maxSkillSuccessLevel": 25,
+    "skillXPRewards": {},
+    "xpFromNewSkill": 200,
+    "trainingCooldown": 10,
+    "skillBonusModifier": 1,
+    "charXPPerSkillLevel": 5,
+    "baseXPFromSkillUpgrade": 125,
+    "skillTypeDifficultyBonus": {},
+    "startingXPToLevelUpSkill": 100,
+    "baseChanceToLearnNewSkill": 0.1,
+    "skillLearningBonusModifier": 0.01,
+    "additionalXPRequiredPerSkillLevel": 40,
+    "newSkillGenerationEnabled": true
+  },
+  "progressionSettings": {
+    "startingCharacterLevelUpRequirement": 1000,
+    "extraRequiredXPPerCharacterLevel": 400,
+    "maxCharacterLevel": 100,
+    "abilityPointEveryLevels": 1,
+    "abilityPointsPerGrant": 1,
+    "attributePointEveryLevels": 5,
+    "attributePointsPerGrant": 1,
+    "maxAttributeValue": 999,
+    "traitPickEveryLevels": 10,
+    "traitPicksPerGrant": 1,
+    "locationDiscoveryXP": 10,
+    "levelUpTraitPool": [],
+    "milestoneTitles": [
+      {
+        "levelGranted": 1,
+        "title": "Initiate"
+      },
+      {
+        "levelGranted": 10,
+        "title": "Adept"
+      },
+      {
+        "levelGranted": 20,
+        "title": "Veteran"
+      },
+      {
+        "levelGranted": 30,
+        "title": "Expert"
+      },
+      {
+        "levelGranted": 40,
+        "title": "Master"
+      },
+      {
+        "levelGranted": 50,
+        "title": "Legend"
+      }
+    ]
+  },
+  "locationSettings": {
+    "regionSize": 100,
+    "simpleRadius": 2,
+    "complexRadius": 5,
+    "regionLocationCount": 8,
+    "avgTravelDistance": 20,
+    "minTravelDistance": 5,
+    "newRegionGenerationEnabled": true,
+    "regionMapBorderFeatheringEnabled": true,
+    "encountersEnabled": false
+  },
+  "itemSettings": {
+    "currencyName": "mark",
+    "itemSlots": [
+      {
+        "slot": "head",
+        "category": "Armor",
+        "quantity": 1
+      },
+      {
+        "slot": "body",
+        "category": "Armor",
+        "quantity": 1
+      },
+      {
+        "slot": "legs",
+        "category": "Armor",
+        "quantity": 1
+      },
+      {
+        "slot": "feet",
+        "category": "Armor",
+        "quantity": 1
+      },
+      {
+        "slot": "hands",
+        "category": "Armor",
+        "quantity": 1
+      }
+    ],
+    "itemCategories": [
+      "Currency",
+      "Armor",
+      "Weapon",
+      "Tool",
+      "Consumable"
+    ],
+    "startingItems": []
+  },
+  "combatSettings": {
+    "minCombatXP": 1,
+    "baseCombatXP": 100,
+    "abilityCooldown": 20,
+    "abilityBonus": 10,
+    "npcDailyHealingAmount": 999,
+    "damageTypes": [
+      ""
+    ],
+    "damageTypePresentation": {}
+  },
+  "tipSettings": {
+    "tips": [
+      ""
+    ],
+    "tipDisplayEnabled": false,
+    "tipTurnInterval": 5,
+    "tipMinimumTurns": 1,
+    "tipMaximumTurns": 50
+  },
+  "death": {
+    "permadeath": false,
+    "instructions": ""
+  },
+  "endGame": {
+    "win": {
+      "endCondition": "win",
+      "instructions": ""
+    },
+    "lose": {
+      "endCondition": "lose",
+      "instructions": ""
+    },
+    "end": {
+      "endCondition": "end",
+      "instructions": ""
+    }
+  },
+  "relationshipStages": [
+    {
+      "name": "Nemesis",
+      "minScore": -100,
+      "maxScore": -81
+    },
+    {
+      "name": "Antagonist",
+      "minScore": -80,
+      "maxScore": -61
+    },
+    {
+      "name": "Hostile",
+      "minScore": -60,
+      "maxScore": -41
+    },
+    {
+      "name": "Unfriendly",
+      "minScore": -40,
+      "maxScore": -21
+    },
+    {
+      "name": "Cold",
+      "minScore": -20,
+      "maxScore": -1
+    },
+    {
+      "name": "Neutral",
+      "minScore": 0,
+      "maxScore": 0
+    },
+    {
+      "name": "Warm",
+      "minScore": 1,
+      "maxScore": 20
+    },
+    {
+      "name": "Friendly",
+      "minScore": 21,
+      "maxScore": 40
+    },
+    {
+      "name": "Confidant",
+      "minScore": 41,
+      "maxScore": 60
+    },
+    {
+      "name": "Ally",
+      "minScore": 61,
+      "maxScore": 80
+    },
+    {
+      "name": "Devoted",
+      "minScore": 81,
+      "maxScore": 100
+    }
+  ],
+  "gameplayMusicSettings": {
+    "characterCreationTrackId": "CharacterCreationFantasy",
+    "tracks": {
+      "CharacterCreationFantasy": {
+        "cues": [
+          "character-creation"
+        ],
+        "variants": [
+          {
+            "url": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/FantasyCharacterSelectA.wav"
+          },
+          {
+            "url": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/FantasyCharacterSelectB.wav"
+          },
+          {
+            "url": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/FantasyCharacterSelectC.wav"
+          }
+        ]
+      },
+      "CharacterCreationFuturistic": {
+        "cues": [
+          "character-creation"
+        ],
+        "variants": [
+          {
+            "url": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/FuturisticCharacterCreateA.wav"
+          },
+          {
+            "url": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/FuturisticCharacterCreateB.wav"
+          },
+          {
+            "url": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/FuturisticCharacterCreateC.wav"
+          }
+        ]
+      },
+      "Investigatory": {
+        "matchTags": [
+          "investigation",
+          "searching",
+          "clues",
+          "hidden",
+          "sneaking",
+          "spying",
+          "detective",
+          "tracking"
+        ],
+        "variants": [
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Investigatory1_NAR_REENCODED.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Investigatory1_PLY.ogg"
+          },
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Investigatory2_NAR_REENCODED.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Investigatory2_PLY_REENCODED.ogg"
+          },
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Investigatory3_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Investigatory3_PLY.ogg"
+          },
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Investigatory4_NAR_REENCODED.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Investigatory4_PLY.ogg"
+          }
+        ]
+      },
+      "Apprehensive": {
+        "matchTags": [
+          "dread",
+          "ominous",
+          "lurking",
+          "danger",
+          "warning",
+          "threatening",
+          "tense",
+          "anxious",
+          "uneasy",
+          "foreboding",
+          "suspicious",
+          "nervous"
+        ],
+        "variants": [
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Apprehensive_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Apprehensive_PLY_REENCODED.ogg"
+          }
+        ]
+      },
+      "Awestruck": {
+        "matchTags": [
+          "wonder",
+          "magnificent",
+          "ancient",
+          "revelation",
+          "sacred",
+          "overwhelming",
+          "majestic",
+          "vast",
+          "breathtaking",
+          "awe",
+          "mystical",
+          "divine",
+          "grandeur",
+          "discovery"
+        ],
+        "variants": [
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Awestruck_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Awestruck_PLY.ogg"
+          }
+        ]
+      },
+      "Calm": {
+        "matchTags": [
+          "peaceful",
+          "safe",
+          "rest",
+          "serene",
+          "tranquil",
+          "relaxed",
+          "shelter",
+          "stillness",
+          "meditative",
+          "comfort"
+        ],
+        "variants": [
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Calm_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Calm_PLY.ogg"
+          }
+        ]
+      },
+      "Dead": {
+        "matchTags": [
+          "death",
+          "killed",
+          "fallen",
+          "tragedy",
+          "grief",
+          "devastating",
+          "perished",
+          "fatal"
+        ],
+        "cues": [
+          "dead"
+        ],
+        "variants": [
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Dead1_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Dead1_PLY.ogg",
+            "url": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Dead1.ogg"
+          },
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Dead2_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Dead2_PLY.ogg",
+            "url": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Dead2.ogg"
+          },
+          {
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Dead3_PLY.ogg",
+            "url": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Dead3.ogg"
+          },
+          {
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Dead4_PLY.ogg",
+            "url": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Dead4.ogg"
+          }
+        ]
+      },
+      "Distraught": {
+        "matchTags": [
+          "distress",
+          "turmoil",
+          "betrayal",
+          "anguish",
+          "conflict",
+          "desperate",
+          "troubled",
+          "dilemma",
+          "confrontation",
+          "argument",
+          "tension",
+          "accusation",
+          "rejection",
+          "bitter"
+        ],
+        "variants": [
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Distraught_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Distraught_PLY.ogg"
+          }
+        ]
+      },
+      "Eulogizing": {
+        "matchTags": [
+          "mourning",
+          "memorial",
+          "funeral",
+          "tribute",
+          "remembrance",
+          "farewell",
+          "honoring",
+          "grave"
+        ],
+        "variants": [
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Eulogizing_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Eulogizing_PLY.ogg"
+          }
+        ]
+      },
+      "Exuberant": {
+        "matchTags": [
+          "excitement",
+          "energetic",
+          "wild",
+          "celebration",
+          "dancing",
+          "festival",
+          "jubilant",
+          "excited",
+          "revelry",
+          "exhilarating",
+          "raucous",
+          "festive"
+        ],
+        "variants": [
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Exuberant_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Exuberant_PLY.ogg"
+          }
+        ]
+      },
+      "Fighting": {
+        "matchTags": [
+          "combat",
+          "battle",
+          "fighting",
+          "attack",
+          "clash",
+          "warfare",
+          "strike",
+          "assault"
+        ],
+        "cues": [
+          "combat"
+        ],
+        "variants": [
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Fighting1_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Fighting1_PLY_REENCODED.ogg"
+          },
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Fighting2_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Fighting2_PLY_REENCODED.ogg"
+          },
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Fighting3_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Fighting3_PLY_REENCODED.ogg"
+          }
+        ]
+      },
+      "Happy": {
+        "matchTags": [
+          "cheerful",
+          "pleasant",
+          "friendly",
+          "lighthearted",
+          "warm",
+          "kind",
+          "reunion",
+          "welcome",
+          "hopeful",
+          "gentle",
+          "tender"
+        ],
+        "variants": [
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Happy_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Happy_PLY.ogg"
+          }
+        ]
+      },
+      "Morose": {
+        "matchTags": [
+          "melancholy",
+          "somber",
+          "gloomy",
+          "lonely",
+          "bleak",
+          "empty",
+          "weary",
+          "sorrowful",
+          "resigned",
+          "loss",
+          "regret",
+          "desolate"
+        ],
+        "variants": [
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Morose_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Morose_PLY.ogg"
+          }
+        ]
+      },
+      "Pursued": {
+        "matchTags": [
+          "chase",
+          "fleeing",
+          "escape",
+          "pursuit",
+          "hunted",
+          "running",
+          "urgent",
+          "panic",
+          "frantic"
+        ],
+        "variants": [
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Pursued_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Pursued_PLY.ogg"
+          }
+        ]
+      },
+      "Spooked": {
+        "matchTags": [
+          "horror",
+          "supernatural",
+          "haunted",
+          "eerie",
+          "ghost",
+          "creepy",
+          "cursed",
+          "unnatural",
+          "sinister",
+          "macabre",
+          "unsettling"
+        ],
+        "variants": [
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Spooked1_NAR_REENCODED.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Spooked1_PLY.ogg"
+          },
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Spooked2_NAR_REENCODED.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Spooked2_PLY_REENCODED.ogg"
+          }
+        ]
+      },
+      "Triumphant": {
+        "matchTags": [
+          "victory",
+          "triumph",
+          "heroic",
+          "conquered",
+          "achievement",
+          "glory",
+          "champion",
+          "winning",
+          "victorious",
+          "glorious",
+          "legendary",
+          "celebrated"
+        ],
+        "variants": [
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Triumphant_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Triumphant_PLY.ogg"
+          }
+        ]
+      },
+      "Unconscious": {
+        "matchTags": [
+          "dream",
+          "unconscious",
+          "vision",
+          "trance",
+          "ethereal",
+          "floating",
+          "surreal",
+          "sleep"
+        ],
+        "variants": [
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Unconscious1_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Unconscious1_PLY.ogg"
+          },
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Unconscious2_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Unconscious2_PLY.ogg"
+          }
+        ]
+      },
+      "Travelling": {
+        "matchTags": [
+          "journey",
+          "travel",
+          "road",
+          "adventure",
+          "exploring",
+          "trek",
+          "wandering",
+          "path",
+          "expedition",
+          "voyage",
+          "roaming"
+        ],
+        "cues": [
+          "travel"
+        ],
+        "variants": [
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Travelling1_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Travelling1_PLY.ogg"
+          },
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Travelling2_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Travelling2_PLY.ogg"
+          },
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Travelling3_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Travelling3_PLY.ogg"
+          },
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Travelling4_NAR.ogg"
+          },
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Travelling5_NAR.ogg"
+          },
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Travelling6_NAR.ogg"
+          }
+        ]
+      },
+      "Near_Dead": {
+        "cues": [
+          "near-death"
+        ],
+        "variants": [
+          {
+            "url": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Near_Dead1.ogg"
+          },
+          {
+            "url": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Near_Dead2.ogg"
+          }
+        ]
+      },
+      "Dying": {
+        "cues": [
+          "dying"
+        ],
+        "variants": [
+          {
+            "url": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Dying1.ogg"
+          },
+          {
+            "url": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Dying2.ogg"
+          }
+        ]
+      },
+      "Recover": {
+        "cues": [
+          "recovery"
+        ],
+        "variants": [
+          {
+            "url": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Recover1.ogg"
+          },
+          {
+            "url": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Recover2.ogg"
+          }
+        ]
+      }
+    }
+  },
+  "otherSettings": {
+    "npcHealthPerLevel": 12,
+    "npcMinHealth": 66
+  },
+  "imagePromptConfiguration": {
+    "npcs": "",
+    "locations": "",
+    "areas": "",
+    "regions": "",
+    "items": ""
+  },
+  "characterCreationSettings": {
+    "customizationEnabled": true,
+    "premadeCustomizationEnabled": true
+  },
+  "premadeCharacters": [],
+  "nameFilterSettings": {},
+  "randomNames": {
+    "male": [
+      ""
+    ],
+    "female": [
+      ""
+    ]
+  },
+  "mods": [],
+  "gameModes": {},
+  "authorSeeds": {
+    "Competency Graph Configuration": "The competency machinery ships with a 36-skill general standalone vocabulary seeded in bounded runtime chunks under storage.sys_competency_config.skills. Hosts may override or disable entries; seeders only fill missing entries. Host-native specialist skills remain authoritative. Aliases live in .aliases and specialization parent mappings in .parents. Top-level Voyage skills intentionally remain empty.",
+    "LC-SkillWeave Host Isolation": "All LC-SkillWeave-owned competency IDs use the sw: namespace. Display names remain human-readable. hostEquivalent fields are advisory mappings only. Native Voyage skills and resourceSettings are read-only to SkillWeave; the module must never create, replace, merge into, or repair those host registries."
+  },
+  "encounterElements": {},
+  "characterArchetypes": {},
+  "locationArchetypes": {},
+  "regionArchetypes": {},
+  "parties": {
+    "": {
+      "quests": {},
+      "questTriggers": {},
+      "arcs": {},
+      "narrativeEvents": {}
+    }
+  }
+}

@@ -1,0 +1,881 @@
+{
+  "aiInstructions": {
+    "generateStory": {
+      "LC Minion Group Continuity": "When LC GROUP state is supplied, treat groups as continuity aggregates, not monolithic people. Membership is not obedience, shared knowledge, consent, location authority, native NPC creation, or an official player party. Only confirmed host-resolved events change canonical membership. Group orders represent intentions and communication stages, not completed outcomes. Identified members keep their distinct identities and histories through joins, transfers, dormancy, and disbanding."
+    },
+    "generateNPCUpdates": {
+      "LC Minion Member Identity": "An established individual joining or leaving an LC minion group keeps the same identity, relationships, knowledge, psyche, and canonical host NPC fields. Do not treat group counts as evidence of a new named NPC or an NPC death."
+    }
+  },
+  "heroesVersion": 37,
+  "realms": {},
+  "regions": {},
+  "locations": {},
+  "unassignedAreas": {},
+  "factions": {},
+  "worldVoices": {},
+  "npcs": {},
+  "worldLore": {},
+  "storyStarts": {},
+  "itemTypes": {},
+  "abilities": {},
+  "skills": {},
+  "traits": {},
+  "traitCategories": {},
+  "npcTypes": {},
+  "resourceSettings": {},
+  "triggerDefinitions": {
+    "sys_lcmg_command": {
+      "name": "sys_lcmg_command",
+      "recurring": true,
+      "scope": "player",
+      "phase": "planning",
+      "conditions": [
+        {
+          "type": "action-text",
+          "operator": "regex",
+          "value": "^\\s*:lc\\s+groups?\\b.*$"
+        }
+      ],
+      "effects": [],
+      "script": "const raw=check({type:'action-text'})||[],input=(Array.isArray(raw)?raw:[raw]).map(String).join(' ').trim(),m=storage.sys_lcmg;\nconst tokens=input.match(/^:lc\\s+groups?(?:\\s+(.*))?$/i);if(!tokens){skip=true;}else{\n const args=String(tokens[1]||'').trim().split(/\\s+/).filter(Boolean),head=args[0]||'list',fl=!!(args[1]&&['roster','history','inspect'].includes(args[1])),cmd=fl?args[1]:head,gid=fl?head:args[1]||null;let out='';\n if(!m)out='Minion groups addon is not initialized. Requires Living Continuity.';\n else if(cmd==='list'){const groups=Object.values(m.capsules??{}).slice(0,25);out='LC MINION GROUPS: '+(groups.length?groups.map(g=>g.id+' ['+g.status+'] '+g.count+' members').join(' | '):'none');}\n else if(cmd==='validate')out='LC MINION GROUPS VALIDATION: '+JSON.stringify(m.validation??{}).slice(0,1800);\n else if(['roster','history','inspect'].includes(cmd)&&gid){const g=m.groups?.[gid];if(!g)out='Unknown group '+gid;else if(cmd==='history')out='GROUP HISTORY '+gid+': '+JSON.stringify(m.audit.filter(x=>x.groupId===gid).slice(-12)).slice(0,1800);else out='GROUP '+gid+': '+JSON.stringify({name:g.name,status:g.status,members:Object.keys(g.members??{}).slice(0,40),cohorts:g.cohorts,orders:(g.orders??[]).slice(-6)}).slice(0,1800);}\n else if(m.groups?.[cmd]){const g=m.groups[cmd];out='GROUP '+cmd+': '+String(g.name)+' | '+Object.keys(g.members??{}).length+' identified; '+Object.values(g.cohorts??{}).reduce((a,x)=>a+Number(x.remaining||0),0)+' anonymous.';}\n else out='Usage: :lc groups | :lc groups validate | :lc group <id> roster | :lc group <id> history. Mutations require confirmed host event queue.';\n effects.push({type:'story',instruction:'OUT-OF-WORLD LC MINION GROUPS DIAGNOSTIC. Only display this command result; do not advance fictional events: '+out});\n}"
+    },
+    "sys_lcmg_commit": {
+      "name": "sys_lcmg_commit",
+      "recurring": true,
+      "scope": "party",
+      "phase": "state",
+      "conditions": [],
+      "effects": [],
+      "script": "const m=storage.sys_lcmg,c=storage.sys_continuity_config?.minionGroups??{},S=storage.sys_lc_systems_config?.minionGroups;\nif(!m||c.enabled===false||S?.enabled===false||!storage.sys_lc_system_registry){skip=true;}else{\nconst now=Number(check({type:'game-tick'})||0),max=Math.max(1,Math.min(64,Number(c.maxEventsPerTurn??16))),history=Math.max(32,Number(c.maxEventHistory??256)),maxKeys=Math.max(32,Number(c.maxAppliedKeys??512)),O=x=>x&&typeof x==='object'&&!Array.isArray(x),str=x=>String(x??'').trim(),fail=(reason)=>({status:'rejected',reason}),clone=x=>JSON.parse(JSON.stringify(x));\nconst validEvidence=e=>O(e)&&str(e.source)&&str(e.reason)&&e.confirmed===true&&['host','mechanic','established-event','admin'].includes(str(e.authority));\nconst active=(gid,eid)=>!!m.edges[gid+'|'+eid]?.active;\nconst groupsOf=eid=>Object.values(m.groups).filter(g=>g?.members?.[eid]&&active(g.id,eid));\nconst edgesFor=eid=>Object.values(m.edges).filter(e=>e?.active&&e.entityId===eid);\nconst addReverse=(eid,gid)=>{const r=m.reverse[eid]??(m.reverse[eid]=[]);if(!r.includes(gid))r.push(gid)};\nconst remReverse=(eid,gid)=>{m.reverse[eid]=(m.reverse[eid]??[]).filter(x=>x!==gid)};\nconst conflict=(g,eid,except)=>g.exclusiveDomain&&edgesFor(eid).some(x=>x.groupId!==except&&x.groupId!==g.id&&m.groups[x.groupId]?.exclusiveDomain===g.exclusiveDomain);\nconst take=(g,eid,role,ev)=>{let e=m.edges[g.id+'|'+eid];if(e?.active)return fail('already-member');if(Object.keys(g.members).length>=Math.max(1,Number(c.maxMembersPerGroup??4096)))return fail('member-cap');if(conflict(g,eid))return fail('exclusive-domain-conflict');e={id:g.id+'|'+eid,groupId:g.id,entityId:eid,role:str(role)||'member',active:true,source:ev.evidence?.source??'unprovided',joinedAtTick:now,revision:Number(e?.revision||0)+1};m.edges[e.id]=e;g.members[eid]=e.id;addReverse(eid,g.id);g.revision++;return {status:'applied',edgeId:e.id};};\nconst drop=(g,eid,reason)=>{let e=m.edges[g.id+'|'+eid];if(!e?.active)return fail('not-member');e.active=false;e.exitedAtTick=now;e.exitReason=str(reason)||'unspecified';e.revision++;delete g.members[eid];remReverse(eid,g.id);g.revision++;return {status:'applied',edgeId:e.id};};\nconst process=ev=>{if(!O(ev))return fail('bad-event');const kind=str(ev.type),gid=str(ev.groupId),eid=str(ev.entityId),to=str(ev.toGroupId),g=m.groups[gid];if(c.requireEvidence!==false&&!validEvidence(ev.evidence))return {status:'pending',reason:'requires-confirmed-authority-evidence'};\n if(kind==='create'){\n  if(!c.allowRuntimeGroupCreation)return fail('runtime-creation-disabled');if(!gid||m.groups[gid])return fail('invalid-or-existing-group');if(Object.keys(m.groups).length>=Number(c.maxGroups??512))return fail('group-cap');m.groups[gid]={id:gid,name:str(ev.name||gid).slice(0,140),kind:str(ev.kind||'squad'),status:'active',source:'runtime',createdAtTick:now,revision:1,parentId:null,controllerId:ev.controllerId??null,exclusiveDomain:ev.exclusiveDomain??null,members:{},cohorts:{},orders:[]};return {status:'applied',groupId:gid};}\n if(!g)return fail('unknown-group');\n if(kind==='rename'){if(!str(ev.name))return fail('missing-name');g.name=str(ev.name).slice(0,140);g.revision++;return {status:'applied'};}\n if(kind==='assign'){if(!eid||!active(gid,eid))return fail('not-member');m.edges[gid+'|'+eid].assignment=str(ev.assignment).slice(0,240);g.revision++;return {status:'applied'};}\n if(kind==='order'){if(!str(ev.summary))return fail('missing-order');const id=str(ev.orderId||ev.id);if(!id||m.orders[id])return fail('duplicate-or-missing-order-id');m.orders[id]={id,groupId:gid,summary:str(ev.summary).slice(0,420),issuedAtTick:now,status:'issued',issuerId:ev.issuerId??null,delivery:'not-proven',outcome:'unresolved'};g.orders.push(id);g.orders=g.orders.slice(-24);g.revision++;return {status:'applied',orderId:id};}\n if(kind==='orderUpdate'){let q=m.orders[str(ev.orderId)];if(!q||q.groupId!==gid)return fail('unknown-order');if(!['issued','delivered','acknowledged','contested','inProgress','fulfilled','failed','cancelled'].includes(str(ev.status)))return fail('bad-order-status');q.status=str(ev.status);if(ev.delivery!==undefined)q.delivery=str(ev.delivery);if(ev.outcome!==undefined)q.outcome=str(ev.outcome);q.updatedAtTick=now;g.revision++;return {status:'applied'};}\n if(kind==='join'||kind==='leave'||kind==='transfer'){\n  if(!eid)return fail('missing-entity');if(kind==='join'){\n   if(g.status!=='active')return fail('group-not-active');if(!m.entities[eid]){if(ev.entityKind==='lc-only'&&c.allowLCOnlyIndividual!==false)m.entities[eid]={id:eid,kind:'lc-only',source:ev.evidence?.source??'unprovided',createdAtTick:now};else if(str(ev.entityKind)==='host-reference'&&ev.hostEntityVerified===true)m.entities[eid]={id:eid,kind:'host-reference',source:ev.evidence?.source??'unprovided'};else return fail('unresolved-entity-reference');}\n   return take(g,eid,ev.role,ev);\n  }\n  if(kind==='leave')return drop(g,eid,ev.reason);\n  const dest=m.groups[to];if(!dest||dest.status!=='active'||!active(gid,eid))return fail('invalid-transfer');if(dest.id===gid||active(to,eid))return fail('already-in-destination');if(Object.keys(dest.members).length>=Math.max(1,Number(c.maxMembersPerGroup??4096)))return fail('destination-full');if(conflict(dest,eid,gid))return fail('exclusive-domain-conflict');const role=ev.role||m.edges[gid+'|'+eid]?.role||'member';drop(g,eid,'transfer:'+to);const result=take(dest,eid,role,ev);return result.status==='applied'?{status:'applied',fromGroupId:gid,toGroupId:to,entityId:eid}:fail('transfer-commit-failed');\n }\n if(kind==='cohortMove'){\n  const cid=str(ev.cohortId),dest=m.groups[to],co=g.cohorts[cid],amount=Number(ev.count),newId=str(ev.toCohortId||cid);\n  if(!dest||dest.status!=='active'||gid===to||!co||!Number.isSafeInteger(amount)||amount<=0||amount>co.remaining)return fail('invalid-cohort-move');\n  const prior=dest.cohorts[newId];if(prior&&prior.templateId!==co.templateId)return fail('cohort-template-conflict');\n  if(!prior&&Object.keys(dest.cohorts).length>=Number(c.maxCohortsPerGroup??64))return fail('destination-cohort-cap');\n  co.remaining-=amount;\n  if(prior){prior.remaining+=amount;prior.initialCount+=amount;}else dest.cohorts[newId]={id:newId,templateId:co.templateId,initialCount:amount,remaining:amount,nextSlot:0,source:ev.evidence?.source??'unprovided'};\n  g.revision++;dest.revision++;return {status:'applied',amount,fromGroupId:gid,toGroupId:to};\n }\n if(kind==='cohortLoss'){\n  const cid=str(ev.cohortId),co=g.cohorts[cid],amount=Number(ev.count);\n  if(!co||!Number.isSafeInteger(amount)||amount<=0||amount>co.remaining)return fail('invalid-cohort-loss');\n  if(!str(ev.reason))return fail('missing-loss-reason');co.remaining-=amount;co.confirmedLosses=Number(co.confirmedLosses||0)+amount;g.revision++;return {status:'applied',amount,reason:ev.reason};\n }\n if(kind==='cohortAdd'){\n  const cid=str(ev.cohortId);const n=Number(ev.count);if(!cid||!Number.isSafeInteger(n)||n<0||g.cohorts[cid])return fail('invalid-cohort');if(Object.keys(g.cohorts).length>=Math.max(1,Number(c.maxCohortsPerGroup??64)))return fail('cohort-cap');g.cohorts[cid]={id:cid,templateId:str(ev.templateId||'unspecified'),initialCount:n,remaining:n,nextSlot:0,source:ev.evidence?.source??'unprovided'};g.revision++;return {status:'applied'};\n }\n if(kind==='promote'){\n  const cid=str(ev.cohortId),co=g.cohorts[cid];if(!co||co.remaining<1||!eid||m.entities[eid]||m.edges[gid+'|'+eid]||conflict(g,eid))return fail('invalid-promotion');if(Object.keys(g.members).length>=Math.max(1,Number(c.maxMembersPerGroup??4096)))return fail('member-cap');\n  if(ev.entityKind!=='lc-only'&&ev.entityKind!=='host-reference')return fail('unsupported-promotion-entity-kind');if(ev.entityKind==='host-reference'&&ev.hostEntityVerified!==true)return fail('host-identity-not-verified');\n  co.remaining--;co.nextSlot++;m.entities[eid]={id:eid,kind:ev.entityKind,source:ev.evidence?.source??'unprovided',fromCohort:cid,fromSlot:co.nextSlot,createdAtTick:now,hostSyncStatus:ev.entityKind==='lc-only'?'not-native':'externally-verified'};const r=take(g,eid,ev.role,ev);if(r.status!=='applied'){co.remaining++;co.nextSlot--;delete m.entities[eid];return r;}g.revision++;return {status:'applied',entityId:eid,sourceCohort:cid,remaining:co.remaining};\n }\n if(kind==='disband'){\n  if(g.status==='disbanded')return fail('already-disbanded');g.status='disbanded';for(const eid of Object.keys(g.members))drop(g,eid,'disbanded');g.revision++;return {status:'applied',detachedAll:true};\n }\n if(kind==='setParent'){\n  const pid=str(ev.parentId);if(pid===gid)return fail('cycle');if(pid&&!m.groups[pid])return fail('unknown-parent');let walk=pid,steps=0;while(walk&&steps++<16){if(walk===gid)return fail('cycle');walk=m.groups[walk]?.parentId;}if(steps>=16)return fail('depth-limit');g.parentId=pid||null;g.revision++;return {status:'applied'};\n }\n return fail('unknown-operation');};\n const events=m.queue.splice(0,max);let processed=0;\n for(const ev of events){const key=str(ev?.idempotencyKey||ev?.id);if(!key){m.audit.push({tick:now,type:ev?.type||'unknown',status:'rejected',reason:'idempotency-key-required'});continue;}if(m.applied[key]){m.results[key]={status:'duplicate',original:m.applied[key]};continue;}\n  const res=process(ev);m.results[key]=res;m.audit.push({tick:now,key,type:ev.type,groupId:ev.groupId??null,entityId:ev.entityId??null,status:res.status,reason:res.reason??null,source:ev.evidence?.source??null});if(res.status==='applied'){m.applied[key]={tick:now,type:ev.type};m.revision++;}processed++;\n }\n m.audit=m.audit.slice(-history);const keys=Object.keys(m.applied);for(const key of keys.slice(0,Math.max(0,keys.length-maxKeys)))delete m.applied[key];const results=Object.keys(m.results);for(const key of results.slice(0,Math.max(0,results.length-maxKeys)))delete m.results[key];if(!processed)skip=true;\n}"
+    },
+    "sys_lcmg_context": {
+      "name": "sys_lcmg_context",
+      "recurring": true,
+      "scope": "party",
+      "phase": "planning",
+      "conditions": [],
+      "effects": [],
+      "script": "const m=storage.sys_lcmg,G=storage.sys_lc_context_governor,c=storage.sys_continuity_config?.minionGroups??{},tick=Number(check({type:'game-tick'})||0);\nif(!m||!G||G.enabled!==true||Number(G.tick)!==tick||c.enabled===false||storage.sys_lc_systems_config?.minionGroups?.enabled===false){skip=true;}else{\n const A=storage.sys_lc_attention?.entities??{},SM=storage.sys_lc_scene_model??{},active=new Set((SM.active??[]).map(x=>String(x?.entityId??x?.id??x))),all=Object.values(m.capsules??{}).filter(x=>x.status==='active');\n const score=x=>{let n=0;for(const id of x.memberIds){if(active.has(id))n+=20;if(A[id])n+=Number(A[id].score||0)*3;}if(active.has(x.id))n+=30;if(x.orders.some(o=>['issued','delivered','acknowledged','contested','inProgress'].includes(o.status)))n+=3;return n;};\n const rows=all.map(x=>({x,s:score(x)})).filter(z=>z.s>0).sort((a,b)=>b.s-a.s||a.x.id.localeCompare(b.x.id)).slice(0,Math.max(0,Number(c.maxContextGroups??3)));\n if(rows.length){const max=Math.max(320,Number(c.maxContextChars??1550));let remaining=max;for(const {x} of rows){let content='LC GROUP '+x.id+' '+x.name+' ('+x.kind+'): '+x.count+' members ('+x.named+' identified, '+x.anonymous+' anonymous); relevant identified IDs: '+x.memberIds.join(', ')+'; orders: '+x.orders.map(o=>o.id+'='+o.status).join(', ')+'. Group membership is NOT obedience/consent/shared knowledge or official player-party membership; orders are NOT outcomes. ';content=content.slice(0,Math.max(0,Math.min(remaining,680)));if(!content)break;G.candidates.push({id:'lcmg:'+x.id,system:'minionGroups',priority:71,required:false,tier:'active',stableKey:'lcmg:'+x.id+':'+x.revision,text:content,estimatedChars:content.length});remaining-=content.length;}}\n skip=true;\n}"
+    },
+    "sys_lcmg_initialize": {
+      "name": "sys_lcmg_initialize",
+      "recurring": true,
+      "scope": "party",
+      "phase": "state",
+      "conditions": [],
+      "effects": [],
+      "script": "const O=x=>x&&typeof x==='object'&&!Array.isArray(x),C=storage.sys_continuity_config??(storage.sys_continuity_config={}),S=storage.sys_lc_systems_config??(storage.sys_lc_systems_config={});\nconst cfg=C.minionGroups??(C.minionGroups={});const defaults={enabled:true,schemaVersion:1,templates:{},maxGroupsPerTurn:16,maxEventsPerTurn:16,maxEventHistory:256,maxAppliedKeys:512,maxGroups:512,maxMembersPerGroup:4096,maxCohortsPerGroup:64,maxContextGroups:3,maxContextChars:1550,allowRuntimeGroupCreation:true,requireEvidence:true,allowLCOnlyIndividual:true};for(const [k,v] of Object.entries(defaults))if(cfg[k]===undefined)cfg[k]=v;\nif(!O(cfg.templates))cfg.templates={};S.minionGroups=Object.assign({enabled:true,playerToggle:false},O(S.minionGroups)?S.minionGroups:{});\nconst m=storage.sys_lcmg??(storage.sys_lcmg={});if(!O(m.groups))m.groups={};if(!O(m.edges))m.edges={};if(!O(m.entities))m.entities={};if(!O(m.cohorts))m.cohorts={};if(!O(m.orders))m.orders={};if(!O(m.applied))m.applied={};if(!Array.isArray(m.queue))m.queue=[];if(!Array.isArray(m.audit))m.audit=[];if(!O(m.results))m.results={};if(!O(m.reverse))m.reverse={};if(!O(m.capsules))m.capsules={};m.version=1;m.revision=Number(m.revision||0);m.lastTick=Number(check({type:'game-tick'})||0);\nconst registry=storage.sys_lc_system_registry?.systems;if(registry)registry.minionGroups=Object.assign({id:'minionGroups',purpose:'Continuity-safe group identities, cohort counts, memberships and bounded group projections',owns:['sys_lcmg'],reads:['host minionGroups templates','actor attention','scene','runtime event queue'],feeds:['context governor'],projection:false,backCompat:true},registry.minionGroups??{});\nskip=true;"
+    },
+    "sys_lcmg_seed": {
+      "name": "sys_lcmg_seed",
+      "recurring": true,
+      "scope": "party",
+      "phase": "state",
+      "conditions": [],
+      "effects": [],
+      "script": "const m=storage.sys_lcmg,cfg=storage.sys_continuity_config?.minionGroups??{},enabled=cfg.enabled!==false&&storage.sys_lc_systems_config?.minionGroups?.enabled!==false;\nif(!enabled||!m||!storage.sys_lc_system_registry){skip=true;}else{\n const max=Math.max(0,Number(cfg.maxGroups??512)),O=x=>x&&typeof x==='object'&&!Array.isArray(x);let n=0;\n for(const [key,t] of Object.entries(cfg.templates??{}).slice(0,max)){\n  if(!O(t))continue;const id=String(t.id||'grp:'+key);if(!id||m.groups[id])continue;\n  if(Object.keys(m.groups).length>=max)break;\n  const members=(Array.isArray(t.members)?t.members:[]).filter(x=>O(x)&&String(x.entityRef||x.entityId||'').trim());\n  if(members.length>Math.max(0,Number(cfg.maxMembersPerGroup??4096)))continue;\n  const cohorts=(Array.isArray(t.cohorts)?t.cohorts:[]).filter(x=>O(x)&&Number.isSafeInteger(Number(x.count))&&Number(x.count)>=0).slice(0,Math.max(0,Number(cfg.maxCohortsPerGroup??64)));\n  const gid=id, group={id:gid,name:String(t.name||key).slice(0,140),kind:String(t.kind||'squad'),status:String(t.status||'active'),parentId:t.parentId?String(t.parentId):null,baseLocation:t.baseLocation??null,controllerId:t.controllerEntityRef??null,source:'host-template',revision:1,createdAtTick:Number(check({type:'game-tick'})||0),members:{},cohorts:{},orders:[],exclusiveDomain:t.exclusiveDomain?String(t.exclusiveDomain):null};\n  for(const c of cohorts){const cid=String(c.cohortId||gid+':cohort:'+Object.keys(group.cohorts).length);if(group.cohorts[cid])continue;const n=Number(c.count);group.cohorts[cid]={id:cid,templateId:String(c.templateId||'unspecified'),initialCount:n,remaining:n,nextSlot:0,source:'host-template'};}\n  m.groups[gid]=group;\n  for(const v of members){const eid=String(v.entityRef||v.entityId),edgeId=gid+'|'+eid;if(m.edges[edgeId]?.active)continue;const role=String(v.role||'member');m.entities[eid]=m.entities[eid]??{id:eid,kind:'unresolved-host-reference',source:'host-template'};const edge={id:edgeId,groupId:gid,entityId:eid,role,active:true,source:'host-template',joinedAtTick:group.createdAtTick,revision:1};m.edges[edgeId]=edge;group.members[eid]=edgeId;(m.reverse[eid]??(m.reverse[eid]=[])).push(gid);}\n  m.revision++;n++;\n }\n if(!n)skip=true;\n}"
+    },
+    "sys_lcmg_validate_project": {
+      "name": "sys_lcmg_validate_project",
+      "recurring": true,
+      "scope": "party",
+      "phase": "state",
+      "conditions": [],
+      "effects": [],
+      "script": "const m=storage.sys_lcmg,c=storage.sys_continuity_config?.minionGroups??{};\nif(!m||c.enabled===false||storage.sys_lc_systems_config?.minionGroups?.enabled===false){skip=true;}else{\n const errors=[],rev={},caps={};let n=0;\n for(const [id,g] of Object.entries(m.groups).slice(0,Math.max(1,Number(c.maxGroups??512)))){\n  let named=0,anonymous=0;for(const [eid,eidEdge] of Object.entries(g.members??{})){const e=m.edges[eidEdge];if(!e||!e.active||e.entityId!==eid||e.groupId!==id)errors.push('edge-mismatch:'+id+':'+eid);else{named++;(rev[eid]??(rev[eid]=[])).push(id);}}\n  for(const x of Object.values(g.cohorts??{})){const z=Number(x.remaining);if(!Number.isSafeInteger(z)||z<0)errors.push('bad-cohort:'+id+':'+x.id);else anonymous+=z;}\n  caps[id]={id,name:String(g.name||id),kind:String(g.kind||'squad'),status:String(g.status||'active'),count:named+anonymous,named,anonymous,memberIds:Object.keys(g.members??{}).slice(0,4),orders:(g.orders??[]).slice(-2).map(q=>({id:q,status:m.orders[q]?.status??'unknown'})),location:g.baseLocation??null,revision:g.revision};n++;\n }\n for(const [eid,groups] of Object.entries(rev)){const domains={};for(const gid of groups){const d=m.groups[gid]?.exclusiveDomain;if(d){if(domains[d])errors.push('exclusive-duplicate:'+eid+':'+d);domains[d]=true;}}}\n m.reverse=rev;m.capsules=caps;m.validation={tick:Number(check({type:'game-tick'})||0),groups:n,issues:errors.slice(0,64),issueCount:errors.length};skip=true;\n}"
+    }
+  },
+  "narratorStyle": "",
+  "storySettings": {
+    "worldBackground": "",
+    "questGenerationGuidance": ""
+  },
+  "attributeSettings": {
+    "attributeNames": [
+      ""
+    ],
+    "lowAttributeTraits": {},
+    "maxStartingAttribute": 16,
+    "lowAttributeThreshold": 2,
+    "attributeBonusModifier": 2.5,
+    "attributeStatModifiers": {},
+    "attributeDamageModifiers": {},
+    "attributeDamageReductionModifiers": {},
+    "startingAttributeValue": 8,
+    "startingAttributePoints": 16
+  },
+  "successLevelSettings": {
+    "firstSuccessfulTierId": "mixed-results",
+    "tiers": [
+      {
+        "id": "critical-failure",
+        "name": "Critical Failure",
+        "minScore": null,
+        "maxScore": -66,
+        "imageUrl": "",
+        "prompt": "[Note: {{characterName}} tries to do the action, but it fails in a dramatic, catastrophic way - if enemies are present, consider framing the failure as partly the result of an enemy's cleverness, tactics, or intervention that thwarts the attempt, rather than the player merely being inept.]"
+      },
+      {
+        "id": "failure",
+        "name": "Failure",
+        "minScore": -65,
+        "maxScore": -51,
+        "imageUrl": "",
+        "prompt": "[Note: {{characterName}} tries to do the action, but it fails - if enemies are present, consider framing the failure as partly the result of an enemy's cleverness, tactics, or intervention that thwarts the attempt, rather than the player merely being inept.]"
+      },
+      {
+        "id": "mixed-results",
+        "name": "Mixed Results",
+        "minScore": -50,
+        "maxScore": -26,
+        "imageUrl": "",
+        "prompt": "[Note: {{characterName}} does the action, but it is only partially successful with mixed results.]"
+      },
+      {
+        "id": "basic-success",
+        "name": "Basic Success",
+        "minScore": -25,
+        "maxScore": -1,
+        "imageUrl": "",
+        "prompt": "[Note: {{characterName}}'s action is successful.]"
+      },
+      {
+        "id": "success",
+        "name": "Success",
+        "minScore": 0,
+        "maxScore": 24,
+        "imageUrl": "",
+        "prompt": "[Note: {{characterName}}'s action is quite successful.]"
+      },
+      {
+        "id": "great-success",
+        "name": "Great Success",
+        "minScore": 25,
+        "maxScore": 49,
+        "imageUrl": "",
+        "prompt": "[Note: {{characterName}}'s action is very successful.]"
+      },
+      {
+        "id": "critical-success",
+        "name": "Critical Success",
+        "minScore": 50,
+        "maxScore": null,
+        "imageUrl": "",
+        "prompt": "[Note: {{characterName}}'s action is amazingly successful in an awesome way.]"
+      }
+    ]
+  },
+  "skillSettings": {
+    "maxSkillLevel": 25,
+    "maxSkillSuccessLevel": 25,
+    "skillXPRewards": {},
+    "xpFromNewSkill": 200,
+    "trainingCooldown": 10,
+    "skillBonusModifier": 1,
+    "charXPPerSkillLevel": 5,
+    "baseXPFromSkillUpgrade": 125,
+    "skillTypeDifficultyBonus": {},
+    "startingXPToLevelUpSkill": 100,
+    "baseChanceToLearnNewSkill": 0.1,
+    "skillLearningBonusModifier": 0.01,
+    "additionalXPRequiredPerSkillLevel": 40,
+    "newSkillGenerationEnabled": true
+  },
+  "progressionSettings": {
+    "startingCharacterLevelUpRequirement": 1000,
+    "extraRequiredXPPerCharacterLevel": 400,
+    "maxCharacterLevel": 100,
+    "abilityPointEveryLevels": 1,
+    "abilityPointsPerGrant": 1,
+    "attributePointEveryLevels": 5,
+    "attributePointsPerGrant": 1,
+    "maxAttributeValue": 999,
+    "traitPickEveryLevels": 10,
+    "traitPicksPerGrant": 1,
+    "locationDiscoveryXP": 10,
+    "levelUpTraitPool": [],
+    "milestoneTitles": [
+      {
+        "levelGranted": 1,
+        "title": "Initiate"
+      },
+      {
+        "levelGranted": 10,
+        "title": "Adept"
+      },
+      {
+        "levelGranted": 20,
+        "title": "Veteran"
+      },
+      {
+        "levelGranted": 30,
+        "title": "Expert"
+      },
+      {
+        "levelGranted": 40,
+        "title": "Master"
+      },
+      {
+        "levelGranted": 50,
+        "title": "Legend"
+      }
+    ]
+  },
+  "locationSettings": {
+    "regionSize": 100,
+    "simpleRadius": 2,
+    "complexRadius": 5,
+    "regionLocationCount": 8,
+    "avgTravelDistance": 20,
+    "minTravelDistance": 5,
+    "newRegionGenerationEnabled": true,
+    "regionMapBorderFeatheringEnabled": true,
+    "encountersEnabled": false
+  },
+  "itemSettings": {
+    "currencyName": "mark",
+    "itemSlots": [
+      {
+        "slot": "head",
+        "category": "Armor",
+        "quantity": 1
+      },
+      {
+        "slot": "body",
+        "category": "Armor",
+        "quantity": 1
+      },
+      {
+        "slot": "legs",
+        "category": "Armor",
+        "quantity": 1
+      },
+      {
+        "slot": "feet",
+        "category": "Armor",
+        "quantity": 1
+      },
+      {
+        "slot": "hands",
+        "category": "Armor",
+        "quantity": 1
+      }
+    ],
+    "itemCategories": [
+      "Currency",
+      "Armor",
+      "Weapon",
+      "Tool",
+      "Consumable"
+    ],
+    "startingItems": []
+  },
+  "combatSettings": {
+    "minCombatXP": 1,
+    "baseCombatXP": 100,
+    "abilityCooldown": 20,
+    "abilityBonus": 10,
+    "npcDailyHealingAmount": 999,
+    "damageTypes": [
+      ""
+    ],
+    "damageTypePresentation": {}
+  },
+  "tipSettings": {
+    "tips": [
+      ""
+    ],
+    "tipDisplayEnabled": false,
+    "tipTurnInterval": 5,
+    "tipMinimumTurns": 1,
+    "tipMaximumTurns": 50
+  },
+  "death": {
+    "permadeath": false,
+    "instructions": ""
+  },
+  "endGame": {
+    "win": {
+      "endCondition": "win",
+      "instructions": ""
+    },
+    "lose": {
+      "endCondition": "lose",
+      "instructions": ""
+    },
+    "end": {
+      "endCondition": "end",
+      "instructions": ""
+    }
+  },
+  "relationshipStages": [
+    {
+      "name": "Nemesis",
+      "minScore": -100,
+      "maxScore": -81
+    },
+    {
+      "name": "Antagonist",
+      "minScore": -80,
+      "maxScore": -61
+    },
+    {
+      "name": "Hostile",
+      "minScore": -60,
+      "maxScore": -41
+    },
+    {
+      "name": "Unfriendly",
+      "minScore": -40,
+      "maxScore": -21
+    },
+    {
+      "name": "Cold",
+      "minScore": -20,
+      "maxScore": -1
+    },
+    {
+      "name": "Neutral",
+      "minScore": 0,
+      "maxScore": 0
+    },
+    {
+      "name": "Warm",
+      "minScore": 1,
+      "maxScore": 20
+    },
+    {
+      "name": "Friendly",
+      "minScore": 21,
+      "maxScore": 40
+    },
+    {
+      "name": "Confidant",
+      "minScore": 41,
+      "maxScore": 60
+    },
+    {
+      "name": "Ally",
+      "minScore": 61,
+      "maxScore": 80
+    },
+    {
+      "name": "Devoted",
+      "minScore": 81,
+      "maxScore": 100
+    }
+  ],
+  "gameplayMusicSettings": {
+    "characterCreationTrackId": "CharacterCreationFantasy",
+    "tracks": {
+      "CharacterCreationFantasy": {
+        "cues": [
+          "character-creation"
+        ],
+        "variants": [
+          {
+            "url": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/FantasyCharacterSelectA.wav"
+          },
+          {
+            "url": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/FantasyCharacterSelectB.wav"
+          },
+          {
+            "url": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/FantasyCharacterSelectC.wav"
+          }
+        ]
+      },
+      "CharacterCreationFuturistic": {
+        "cues": [
+          "character-creation"
+        ],
+        "variants": [
+          {
+            "url": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/FuturisticCharacterCreateA.wav"
+          },
+          {
+            "url": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/FuturisticCharacterCreateB.wav"
+          },
+          {
+            "url": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/FuturisticCharacterCreateC.wav"
+          }
+        ]
+      },
+      "Investigatory": {
+        "matchTags": [
+          "investigation",
+          "searching",
+          "clues",
+          "hidden",
+          "sneaking",
+          "spying",
+          "detective",
+          "tracking"
+        ],
+        "variants": [
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Investigatory1_NAR_REENCODED.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Investigatory1_PLY.ogg"
+          },
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Investigatory2_NAR_REENCODED.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Investigatory2_PLY_REENCODED.ogg"
+          },
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Investigatory3_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Investigatory3_PLY.ogg"
+          },
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Investigatory4_NAR_REENCODED.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Investigatory4_PLY.ogg"
+          }
+        ]
+      },
+      "Apprehensive": {
+        "matchTags": [
+          "dread",
+          "ominous",
+          "lurking",
+          "danger",
+          "warning",
+          "threatening",
+          "tense",
+          "anxious",
+          "uneasy",
+          "foreboding",
+          "suspicious",
+          "nervous"
+        ],
+        "variants": [
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Apprehensive_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Apprehensive_PLY_REENCODED.ogg"
+          }
+        ]
+      },
+      "Awestruck": {
+        "matchTags": [
+          "wonder",
+          "magnificent",
+          "ancient",
+          "revelation",
+          "sacred",
+          "overwhelming",
+          "majestic",
+          "vast",
+          "breathtaking",
+          "awe",
+          "mystical",
+          "divine",
+          "grandeur",
+          "discovery"
+        ],
+        "variants": [
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Awestruck_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Awestruck_PLY.ogg"
+          }
+        ]
+      },
+      "Calm": {
+        "matchTags": [
+          "peaceful",
+          "safe",
+          "rest",
+          "serene",
+          "tranquil",
+          "relaxed",
+          "shelter",
+          "stillness",
+          "meditative",
+          "comfort"
+        ],
+        "variants": [
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Calm_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Calm_PLY.ogg"
+          }
+        ]
+      },
+      "Dead": {
+        "matchTags": [
+          "death",
+          "killed",
+          "fallen",
+          "tragedy",
+          "grief",
+          "devastating",
+          "perished",
+          "fatal"
+        ],
+        "cues": [
+          "dead"
+        ],
+        "variants": [
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Dead1_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Dead1_PLY.ogg",
+            "url": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Dead1.ogg"
+          },
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Dead2_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Dead2_PLY.ogg",
+            "url": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Dead2.ogg"
+          },
+          {
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Dead3_PLY.ogg",
+            "url": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Dead3.ogg"
+          },
+          {
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Dead4_PLY.ogg",
+            "url": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Dead4.ogg"
+          }
+        ]
+      },
+      "Distraught": {
+        "matchTags": [
+          "distress",
+          "turmoil",
+          "betrayal",
+          "anguish",
+          "conflict",
+          "desperate",
+          "troubled",
+          "dilemma",
+          "confrontation",
+          "argument",
+          "tension",
+          "accusation",
+          "rejection",
+          "bitter"
+        ],
+        "variants": [
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Distraught_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Distraught_PLY.ogg"
+          }
+        ]
+      },
+      "Eulogizing": {
+        "matchTags": [
+          "mourning",
+          "memorial",
+          "funeral",
+          "tribute",
+          "remembrance",
+          "farewell",
+          "honoring",
+          "grave"
+        ],
+        "variants": [
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Eulogizing_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Eulogizing_PLY.ogg"
+          }
+        ]
+      },
+      "Exuberant": {
+        "matchTags": [
+          "excitement",
+          "energetic",
+          "wild",
+          "celebration",
+          "dancing",
+          "festival",
+          "jubilant",
+          "excited",
+          "revelry",
+          "exhilarating",
+          "raucous",
+          "festive"
+        ],
+        "variants": [
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Exuberant_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Exuberant_PLY.ogg"
+          }
+        ]
+      },
+      "Fighting": {
+        "matchTags": [
+          "combat",
+          "battle",
+          "fighting",
+          "attack",
+          "clash",
+          "warfare",
+          "strike",
+          "assault"
+        ],
+        "cues": [
+          "combat"
+        ],
+        "variants": [
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Fighting1_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Fighting1_PLY_REENCODED.ogg"
+          },
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Fighting2_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Fighting2_PLY_REENCODED.ogg"
+          },
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Fighting3_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Fighting3_PLY_REENCODED.ogg"
+          }
+        ]
+      },
+      "Happy": {
+        "matchTags": [
+          "cheerful",
+          "pleasant",
+          "friendly",
+          "lighthearted",
+          "warm",
+          "kind",
+          "reunion",
+          "welcome",
+          "hopeful",
+          "gentle",
+          "tender"
+        ],
+        "variants": [
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Happy_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Happy_PLY.ogg"
+          }
+        ]
+      },
+      "Morose": {
+        "matchTags": [
+          "melancholy",
+          "somber",
+          "gloomy",
+          "lonely",
+          "bleak",
+          "empty",
+          "weary",
+          "sorrowful",
+          "resigned",
+          "loss",
+          "regret",
+          "desolate"
+        ],
+        "variants": [
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Morose_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Morose_PLY.ogg"
+          }
+        ]
+      },
+      "Pursued": {
+        "matchTags": [
+          "chase",
+          "fleeing",
+          "escape",
+          "pursuit",
+          "hunted",
+          "running",
+          "urgent",
+          "panic",
+          "frantic"
+        ],
+        "variants": [
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Pursued_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Pursued_PLY.ogg"
+          }
+        ]
+      },
+      "Spooked": {
+        "matchTags": [
+          "horror",
+          "supernatural",
+          "haunted",
+          "eerie",
+          "ghost",
+          "creepy",
+          "cursed",
+          "unnatural",
+          "sinister",
+          "macabre",
+          "unsettling"
+        ],
+        "variants": [
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Spooked1_NAR_REENCODED.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Spooked1_PLY.ogg"
+          },
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Spooked2_NAR_REENCODED.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Spooked2_PLY_REENCODED.ogg"
+          }
+        ]
+      },
+      "Triumphant": {
+        "matchTags": [
+          "victory",
+          "triumph",
+          "heroic",
+          "conquered",
+          "achievement",
+          "glory",
+          "champion",
+          "winning",
+          "victorious",
+          "glorious",
+          "legendary",
+          "celebrated"
+        ],
+        "variants": [
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Triumphant_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Triumphant_PLY.ogg"
+          }
+        ]
+      },
+      "Unconscious": {
+        "matchTags": [
+          "dream",
+          "unconscious",
+          "vision",
+          "trance",
+          "ethereal",
+          "floating",
+          "surreal",
+          "sleep"
+        ],
+        "variants": [
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Unconscious1_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Unconscious1_PLY.ogg"
+          },
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Unconscious2_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Unconscious2_PLY.ogg"
+          }
+        ]
+      },
+      "Travelling": {
+        "matchTags": [
+          "journey",
+          "travel",
+          "road",
+          "adventure",
+          "exploring",
+          "trek",
+          "wandering",
+          "path",
+          "expedition",
+          "voyage",
+          "roaming"
+        ],
+        "cues": [
+          "travel"
+        ],
+        "variants": [
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Travelling1_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Travelling1_PLY.ogg"
+          },
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Travelling2_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Travelling2_PLY.ogg"
+          },
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Travelling3_NAR.ogg",
+            "gameplayUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Travelling3_PLY.ogg"
+          },
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Travelling4_NAR.ogg"
+          },
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Travelling5_NAR.ogg"
+          },
+          {
+            "narrationUrl": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Travelling6_NAR.ogg"
+          }
+        ]
+      },
+      "Near_Dead": {
+        "cues": [
+          "near-death"
+        ],
+        "variants": [
+          {
+            "url": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Near_Dead1.ogg"
+          },
+          {
+            "url": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Near_Dead2.ogg"
+          }
+        ]
+      },
+      "Dying": {
+        "cues": [
+          "dying"
+        ],
+        "variants": [
+          {
+            "url": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Dying1.ogg"
+          },
+          {
+            "url": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Dying2.ogg"
+          }
+        ]
+      },
+      "Recover": {
+        "cues": [
+          "recovery"
+        ],
+        "variants": [
+          {
+            "url": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Recover1.ogg"
+          },
+          {
+            "url": "https://latitude-standard-pull-zone-1.b-cdn.net/site_assets/heroes/audio/music/Recover2.ogg"
+          }
+        ]
+      }
+    }
+  },
+  "otherSettings": {
+    "npcHealthPerLevel": 12,
+    "npcMinHealth": 66
+  },
+  "imagePromptConfiguration": {
+    "npcs": "",
+    "locations": "",
+    "areas": "",
+    "regions": "",
+    "items": ""
+  },
+  "characterCreationSettings": {
+    "customizationEnabled": true,
+    "premadeCustomizationEnabled": true
+  },
+  "premadeCharacters": [],
+  "nameFilterSettings": {},
+  "randomNames": {
+    "male": [
+      ""
+    ],
+    "female": [
+      ""
+    ]
+  },
+  "mods": [],
+  "gameModes": {},
+  "authorSeeds": {},
+  "encounterElements": {},
+  "characterArchetypes": {},
+  "locationArchetypes": {},
+  "regionArchetypes": {},
+  "parties": {
+    "": {
+      "quests": {},
+      "questTriggers": {},
+      "arcs": {},
+      "narrativeEvents": {}
+    }
+  }
+}
