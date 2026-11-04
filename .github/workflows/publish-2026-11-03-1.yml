@@ -1,0 +1,39 @@
+name: Publish LC v2026.11.03.1 Groups syntax-fix patch
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/releases/2026-11-03.1.md
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: living-continuity-v2026.11.03.1
+  cancel-in-progress: false
+jobs:
+  release:
+    if: github.repository == 'sign-out/Living-Continuity'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Run LC and corrected bundled export static regression tests
+        run: python -m unittest discover -s tests -p 'test_*.py' -v
+      - name: Publish GitHub patch release and attach exports
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view v2026.11.03.1 >/dev/null 2>&1; then
+            echo "Release v2026.11.03.1 already exists"
+            exit 0
+          fi
+          gh release create v2026.11.03.1 \
+            Living_Continuity.json \
+            addons/LC_Groups_That_Remember.json \
+            addons/LC_SkillWeave.json \
+            exports/LC_Voyage_2026-11-03.json \
+            exports/LC_Groups_Bundled_Quest_Summary_Fixed_2026-11-03.json \
+            --target "$GITHUB_SHA" \
+            --title "Living Continuity — Groups bundle syntax fix (v2026.11.03.1)" \
+            --notes-file docs/releases/2026-11-03.1.md

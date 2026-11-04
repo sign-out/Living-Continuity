@@ -17,3 +17,7 @@ python -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
 This is static validation. Runtime outcomes must still be checked in Voyage Studio.
+
+## Corrected bundled Groups export
+
+The [quest-summary-syntax-fixed LC + Groups bundle](exports/LC_Groups_Bundled_Quest_Summary_Fixed_2026-11-03.json) is a **complete Voyage world/export snapshot**, not a standalone add-on or a replacement for the installable modular LC core. It includes six Groups triggers but follows a different LC runtime branch and does not contain the separate core's NPC-competence triggers. Use it only when reproducing that particular combined source. See [patch release notes](docs/releases/2026-11-03.1.md).
