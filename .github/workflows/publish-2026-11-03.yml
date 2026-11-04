@@ -1,0 +1,42 @@
+name: Publish LC 2026-11-03 release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/releases/2026-11-03.md
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: living-continuity-v2026.11.03
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.repository == 'sign-out/Living-Continuity'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check modular core and addons
+        run: python -m unittest discover -s tests -p 'test_*.py' -v
+      - name: Publish GitHub release and attach installables
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view v2026.11.03 >/dev/null 2>&1; then
+            echo "Release v2026.11.03 already exists"
+            exit 0
+          fi
+          gh release create v2026.11.03 \
+            Living_Continuity.json \
+            addons/LC_Groups_That_Remember.json \
+            addons/LC_SkillWeave.json \
+            exports/LC_Voyage_2026-11-03.json \
+            --target "$GITHUB_SHA" \
+            --title "Living Continuity — Voyage sync 2026-11-03" \
+            --notes-file docs/releases/2026-11-03.md
