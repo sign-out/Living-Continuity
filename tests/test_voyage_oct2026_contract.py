@@ -40,7 +40,7 @@ class VoyageOct2026CompatibilityTests(unittest.TestCase):
     def test_release_identity_and_trigger_inventory(self):
         w = self.world
         self.assertEqual(w["heroesVersion"], 37)
-        self.assertEqual(len(w["triggerDefinitions"]), 204)
+        self.assertEqual(len(w["triggerDefinitions"]), 206)
         for key in (
             "sys_lc_mp_attribute_social",
             "sys_clock_advance",
@@ -92,9 +92,26 @@ class VoyageOct2026CompatibilityTests(unittest.TestCase):
         current = self.world
         self.assertEqual(list(base), list(current))
         for key in base:
-            if key != "aiInstructions":
+            if key not in ("aiInstructions", "triggerDefinitions"):
                 with self.subTest(field=key):
                     self.assertEqual(base[key], current[key])
+        old_t, new_t = base["triggerDefinitions"], current["triggerDefinitions"]
+        self.assertEqual(set(new_t) - set(old_t), {
+            "sys_lc_native_time_bridge_planning",
+            "sys_lc_native_time_bridge_state",
+        })
+        allowed = {
+            "sys_lc_semantic_temporal_endpoint",
+            "sys_lc_previous_prose_time_reconcile",
+            "sys_sleep_to_morning",
+            "sys_explicit_duration_time_cost",
+            "sys_clock_initialize",
+            "sys_clock_advance",
+            "sys_time_command",
+            "sys_skip_calendar_time",
+            "sys_hud_render",
+        }
+        self.assertEqual({k for k in old_t if old_t[k] != new_t[k]}, allowed)
         self.assertEqual(list(base["aiInstructions"]), list(current["aiInstructions"]))
 
 if __name__ == "__main__":
