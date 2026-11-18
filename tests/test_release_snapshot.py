@@ -15,11 +15,34 @@ class ReleaseSnapshotTests(unittest.TestCase):
         cls.source = read("exports/LC_Voyage_2026-11-03.json")
         cls.groups = read("addons/LC_Groups_That_Remember.json")
 
-    def test_native_runtime_equals_supplied_voyage_source(self):
+    def test_native_time_is_a_bounded_delta_from_voyage_source(self):
         self.assertEqual(self.core["heroesVersion"], 37)
-        self.assertEqual(self.core["triggerDefinitions"], self.source["triggerDefinitions"])
-        self.assertEqual(len(self.core["triggerDefinitions"]), 204)
-        self.assertEqual(sum(bool(t.get("script")) for t in self.core["triggerDefinitions"].values()), 196)
+        self.assertEqual(self.source["heroesVersion"], 37)
+        base, now = self.source["triggerDefinitions"], self.core["triggerDefinitions"]
+        self.assertEqual(len(base), 204)
+        self.assertEqual(len(now), 206)
+        self.assertEqual(sum(bool(t.get("script")) for t in now.values()), 198)
+        added = set(now) - set(base)
+        changed = {k for k in base if now[k] != base[k]}
+        self.assertEqual(added, {
+            "sys_lc_native_time_bridge_planning",
+            "sys_lc_native_time_bridge_state",
+        })
+        self.assertEqual(changed, {
+            "sys_lc_semantic_temporal_endpoint",
+            "sys_lc_previous_prose_time_reconcile",
+            "sys_sleep_to_morning",
+            "sys_explicit_duration_time_cost",
+            "sys_clock_initialize",
+            "sys_clock_advance",
+            "sys_time_command",
+            "sys_skip_calendar_time",
+            "sys_hud_render",
+        })
+        self.assertEqual(set(self.core) - {"triggerDefinitions"}, set(self.source) - {"triggerDefinitions"})
+        for k in self.core:
+            if k != "triggerDefinitions":
+                self.assertEqual(self.core[k], self.source[k], k)
 
     def test_october_compatibility_not_lost_to_source_export(self):
         ai = self.core["aiInstructions"]
