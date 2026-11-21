@@ -43,3 +43,25 @@ The current community-maintained Voyage trigger documentation confirms that `sco
 This is **native attribution for player-scoped trigger matching/effects**, not proof that scripts receive a per-action actor ID. The documented `check({type:'action-text'})` return is a raw array of player action strings, without a documented player-ID association. Therefore do not assume the array position maps to a player or parse the host's narrator parenthetical as a stable machine-readable ID.
 
 Integration decision: use native player-scoped matching and player-specific effects for future capability evidence producers when appropriate; require explicit verified actor IDs for storage writes until a documented native actor-attribution script API is identified. Never assign a capability to the first/only guessed player in a multiplayer turn. Existing registry and narration policy remain usable. Do not claim complete automatic multiplayer evidence ingestion until this is verified in Voyage Studio.
+
+## Tournament follow-up: practice from meaningful unsuccessful attempts
+
+Selected: reuse native player-scoped progression attribution, retain four existing semantic probes, and distinguish **attempt evidence** from **demonstrated success**. Rejected: narrator-only memory, speculative extraction of a technique from generic progression marks, and a parallel numerical skill/difficulty system.
+
+The ingestion trigger now accepts `outcome` (`success`, `failure`, `partial`, or `attempt`), `meaningfulAttempt: true`, and `possible` alongside existing confirmed, actor-attributed evidence. A successful event records a demonstrated capability and practice; a meaningful unsuccessful attempt records practice only. `possible: false` blocks practice accrual for impossible tasks. Unspecified outcome remains success for backwards compatibility with existing evidence producers; this does **not** mean a generic progression mark proves success.
+
+Practice is stored separately by owner and technique (`storage.sys_lc_practice_continuity`) with idempotent source-event deduplication, attempt and success counts, and private-by-default visibility. These counts are evidence of experience, **not** automatic success thresholds, ability ceilings, or replacement Voyage skill values. Generic native progression marks alone cannot reliably name a technique or establish outcome; they remain attribution signals, not invented confirmed evidence.
+
+### Regression matrix to run in Voyage Studio
+1. Confirmed successful action -> one practice attempt + one demonstrated capability.
+2. Confirmed failed meaningful action -> one practice attempt, no demonstrated success.
+3. Repeat the same source event -> no additional attempt.
+4. Different confirmed source events -> cumulative practice.
+5. `possible:false`, unconfirmed, or unattributed event -> no new practice.
+6. Two players performing different actions -> each record remains under its verified owner; no cross-player transfer.
+7. Private practice and capability evidence -> never emit in a shared multiplayer story context.
+8. Four existing social/knowledge/consequence/progression probes -> remain enabled and unchanged.
+9. More than 128 queued evidence events -> bounded FIFO processing across turns without losing older events.
+10. Future action resolution -> accumulated practice informs generous, proportionate outcomes but never guarantees success or imposes a ceiling.
+
+**Still needed:** connect native attributed progression events and verified action outcomes to the structured evidence queue. A generic progression marker is not sufficient by itself to identify the practiced technique. Live Studio behavior has not been verified.
