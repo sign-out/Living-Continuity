@@ -35,3 +35,11 @@ No trustworthy generic event-to-capability semantic extractor exists in the curr
 9. Test private multiplayer capability evidence only after a per-player projection path is implemented.
 
 Static JSON shape and JS scripts require validation in the target Voyage Studio runtime; no runtime success is asserted here.
+
+## Native Voyage multiplayer attribution discovery (2026-11-21)
+
+The current community-maintained Voyage trigger documentation confirms that `scope: "player"` evaluates conditions against satisfying players and routes applicable effects to those players. A player-scoped `story` effect receives a host-generated attribution parenthetical identifying the affected player(s). `target: "satisfyingPlayers"` likewise directs individual player effects. Source: https://wiki.unofficial.voyage/mechanics/triggerDefinitions#targeting-a-specific-player
+
+This is **native attribution for player-scoped trigger matching/effects**, not proof that scripts receive a per-action actor ID. The documented `check({type:'action-text'})` return is a raw array of player action strings, without a documented player-ID association. Therefore do not assume the array position maps to a player or parse the host's narrator parenthetical as a stable machine-readable ID.
+
+Integration decision: use native player-scoped matching and player-specific effects for future capability evidence producers when appropriate; require explicit verified actor IDs for storage writes until a documented native actor-attribution script API is identified. Never assign a capability to the first/only guessed player in a multiplayer turn. Existing registry and narration policy remain usable. Do not claim complete automatic multiplayer evidence ingestion until this is verified in Voyage Studio.
