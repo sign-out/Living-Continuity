@@ -23,7 +23,7 @@ class PositivePracticeContract(unittest.TestCase):
     def test_confirmed_actor_and_source_required(self):
         key = "lcx_positive_capability_ingest" if WORLD.name == "LCX.json" else "sys_lc_positive_capability_ingest"
         script = self.triggers[key]["script"]
-        for required in ("e.confirmed!==true", "!e.entityId", "!e.sourceEventId", "meaningfulAttempt", "possible!==false", "successful&&cap", "sources.includes(source)", "Q.splice(0,128)"):
+        for required in ("e.confirmed!==true", "!e.entityId", "!e.sourceEventId", "meaningfulAttempt", "possible!==false", "successful&&cap", "seen.includes(source)", "Q.splice(0,128)"):
             self.assertIn(required, script)
 
     def test_practice_retrieval_and_privacy(self):
